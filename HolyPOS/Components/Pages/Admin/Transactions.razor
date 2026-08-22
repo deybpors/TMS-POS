@@ -1,0 +1,1639 @@
+@page "/admin/transactions"
+@rendermode InteractiveServer
+
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Layout
+
+@inject DatabaseData Data
+
+<PageTitle>Transactions</PageTitle>
+
+
+<div class="admin-page">
+
+    <!-- ===================================================== -->
+    <!-- HEADER -->
+    <!-- ===================================================== -->
+
+    <div class="page-header">
+
+        <div>
+            <h1>Transactions</h1>
+
+            <p>
+                View your sales and transaction history.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- FILTERS -->
+    <!-- ===================================================== -->
+
+    <div class="admin-card mb-4">
+
+        <div class="p-4">
+
+            <div class="row g-3 align-items-end">
+
+                <DateRangePicker
+                    StartDate="@DateFrom"
+                    EndDate="@DateTo"
+                    OnDateRangeChanged="DateRangeChanged" />
+
+
+                <!-- STORE -->
+
+                <div class="col-md-2">
+
+                    <label class="form-label text-muted small">
+                        Store
+                    </label>
+
+                    <select class="form-select"
+                            @bind="SelectedStore"
+                            @bind:after="FiltersChanged">
+
+                        <option value="">
+                            All stores
+                        </option>
+
+                        @foreach (var store in Data.Stores
+                            .Where(x => x.Active)
+                            .OrderBy(x => x.Name))
+                        {
+                            <option value="@store.Id">
+                                @store.Name
+                            </option>
+                        }
+
+                    </select>
+
+                </div>
+
+
+                <!-- TYPE -->
+
+                <div class="col-md-2">
+
+                    <label class="form-label text-muted small">
+                        Type
+                    </label>
+
+                    <select class="form-select"
+                            @bind="SelectedType"
+                            @bind:after="FiltersChanged">
+
+                        <option value="">
+                            All transactions
+                        </option>
+
+                        <option value="sale">
+                            Sales
+                        </option>
+
+                        <option value="refund">
+                            Refunds
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- TIME -->
+
+                <div class="col-md-2">
+
+                    <label class="form-label text-muted small">
+                        Time
+                    </label>
+
+                    <select class="form-select"
+                            @bind="SelectedTime"
+                            @bind:after="FiltersChanged">
+
+                        <option value="All day">
+                            All day
+                        </option>
+
+                        <option value="Morning">
+                            Morning
+                        </option>
+
+                        <option value="Afternoon">
+                            Afternoon
+                        </option>
+
+                        <option value="Evening">
+                            Evening
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- SEARCH -->
+
+                <div class="col-md-2">
+
+                    <label class="form-label text-muted small">
+                        Search
+                    </label>
+
+                    <input type="search"
+                           class="form-control"
+                           placeholder="Receipt, store, item..."
+                           @bind="Search"
+                           @bind:event="oninput"
+                           @bind:after="FiltersChanged" />
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- SUMMARY -->
+    <!-- ===================================================== -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+
+            <div class="admin-card p-4">
+
+                <div class="text-muted small">
+                    Sales
+                </div>
+
+                <div class="fs-3 fw-semibold">
+                    @SalesCount
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="admin-card p-4">
+
+                <div class="text-muted small">
+                    Refunds
+                </div>
+
+                <div class="fs-3 fw-semibold">
+                    @RefundCount
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="admin-card p-4">
+
+                <div class="text-muted small">
+                    Net Sales
+                </div>
+
+                <div class="fs-3 fw-semibold">
+                    ₱@NetSales.ToString("N2")
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- TABLE -->
+    <!-- ===================================================== -->
+
+    <div class="admin-card">
+
+        <div class="table-responsive">
+
+            <table class="table align-middle mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th class="px-4">
+                            Receipt ID
+                        </th>
+
+                        <th>
+                            Date
+                        </th>
+
+                        <th>
+                            Store
+                        </th>
+
+                        <th>
+                            Type
+                        </th>
+
+                        <th>
+                            Gross
+                        </th>
+
+                        <th>
+                            Discount
+                        </th>
+
+                        <th>
+                            Net
+                        </th>
+
+                        <th>
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    @if (IsLoading)
+                    {
+                        <tr>
+
+                            <td colspan="8"
+                                class="text-center py-5">
+
+                                <div class="spinner-border"
+                                     role="status">
+
+                                    <span class="visually-hidden">
+                                        Loading...
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+                    }
+                    else if (!PagedTransactions.Any())
+                    {
+                        <tr>
+
+                            <td colspan="8"
+                                class="text-center text-muted py-5">
+
+                                No transactions found.
+
+                            </td>
+
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in PagedTransactions)
+                        {
+                            var transaction = row.Transaction;
+
+                            var totals =
+                                CalculateTransactionTotals(row);
+
+
+                            <tr>
+
+                                <!-- RECEIPT -->
+
+                                <td class="px-4">
+
+                                    <button type="button"
+                                            class="btn btn-link text-dark text-decoration-none p-0"
+                                            @onclick="() => ViewTransaction(row)">
+
+                                        @transaction.ReceiptId
+
+                                    </button>
+
+                                </td>
+
+
+                                <!-- DATE -->
+
+                                <td>
+
+                                    <div>
+                                        @(transaction.TransactionDate
+                                            .ToLocalTime()
+                                            .ToString("MMM dd, yyyy"))
+                                    </div>
+
+                                    <small class="text-muted">
+                                        @(transaction.TransactionDate
+                                            .ToLocalTime()
+                                            .ToString("h:mm tt"))
+                                    </small>
+
+                                </td>
+
+
+                                <!-- STORE -->
+
+                                <td>
+
+                                    @row.StoreName
+
+                                </td>
+
+
+                                <!-- TYPE -->
+
+                                <td>
+
+                                    @if (transaction.IsRefunded)
+                                    {
+                                        <span class="badge bg-danger">
+                                            Refunded
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">
+                                            Sale
+                                        </span>
+                                    }
+
+                                </td>
+
+
+                                <!-- GROSS -->
+
+                                <td>
+
+                                    ₱@totals.Gross.ToString("N2")
+
+                                </td>
+
+
+                                <!-- DISCOUNT -->
+
+                                <td>
+
+                                    ₱@totals.Discount.ToString("N2")
+
+                                </td>
+
+
+                                <!-- NET -->
+
+                                <td>
+
+                                    @if (transaction.IsRefunded)
+                                    {
+                                        <span class="text-danger">
+                                            -₱@transaction.Refunds.ToString("N2")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>
+                                            ₱@totals.Net.ToString("N2")
+                                        </span>
+                                    }
+
+                                </td>
+
+
+                                <!-- VIEW -->
+
+                                <td class="text-end px-4">
+
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-sm"
+                                            @onclick="() => ViewTransaction(row)">
+
+                                        View
+
+                                    </button>
+
+                                </td>
+
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- PAGINATION -->
+        <!-- ================================================= -->
+
+        <div class="d-flex align-items-center p-3 border-top">
+
+            <div class="btn-group">
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@(!HasPreviousPage)"
+                        @onclick="PreviousPage">
+
+                    <i class="bi bi-chevron-left"></i>
+
+                </button>
+
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@(!HasNextPage)"
+                        @onclick="NextPage">
+
+                    <i class="bi bi-chevron-right"></i>
+
+                </button>
+
+            </div>
+
+
+            <div class="ms-4 d-flex align-items-center gap-2">
+
+                <span>
+                    Page:
+                </span>
+
+                <span class="fw-semibold">
+                    @CurrentPage
+                </span>
+
+                <span>
+                    of @TotalPages
+                </span>
+
+
+                <span class="ms-4">
+                    Rows per page:
+                </span>
+
+
+                <select class="form-select"
+                        style="width:90px;"
+                        @bind="RowsPerPage"
+                        @bind:after="RowsPerPageChanged">
+
+                    <option value="10">
+                        10
+                    </option>
+
+                    <option value="25">
+                        25
+                    </option>
+
+                    <option value="50">
+                        50
+                    </option>
+
+                    <option value="100">
+                        100
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- TRANSACTION DETAILS MODAL -->
+<!-- ========================================================= -->
+
+@if (Selected is not null)
+{
+    var totals =
+        CalculateTransactionTotals(Selected);
+
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+
+            <div class="modal-content">
+
+
+                <!-- HEADER -->
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <h5 class="modal-title">
+
+                            Receipt
+                            @Selected.Transaction.ReceiptId
+
+                        </h5>
+
+                        <small class="text-muted">
+
+                            @(Selected.Transaction.TransactionDate
+                                .ToLocalTime()
+                                .ToString("MMM dd, yyyy h:mm tt"))
+
+                        </small>
+
+                    </div>
+
+
+                    <button type="button"
+                            class="btn-close"
+                            @onclick="CloseModal">
+
+                    </button>
+
+                </div>
+
+
+                <!-- BODY -->
+
+                <div class="modal-body">
+
+                    <!-- BASIC INFORMATION -->
+
+                    <div class="row g-3 mb-4">
+
+                        <div class="col-md-4">
+
+                            <div class="text-muted small">
+                                Receipt
+                            </div>
+
+                            <div class="fw-semibold">
+                                @Selected.Transaction.ReceiptId
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <div class="text-muted small">
+                                Store
+                            </div>
+
+                            <div class="fw-semibold">
+                                @Selected.StoreName
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <div class="text-muted small">
+                                Type
+                            </div>
+
+                            <div>
+
+                                @if (Selected.Transaction.IsRefunded)
+                                {
+                                    <span class="badge bg-danger">
+                                        Refunded
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">
+                                        Sale
+                                    </span>
+                                }
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- REFUND INFORMATION -->
+
+                    @if (Selected.Transaction.OriginalTransactionId.HasValue)
+                    {
+                        <div class="alert alert-warning">
+
+                            This transaction is a refund of another
+                            transaction.
+
+                        </div>
+                    }
+
+
+                    <!-- ITEMS -->
+
+                    <h6 class="mb-3">
+                        Items
+                    </h6>
+
+
+                    @if (!Selected.Items.Any())
+                    {
+                        <div class="text-muted mb-4">
+                            No transaction items found.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="border rounded">
+
+                            @foreach (var item in Selected.Items)
+                            {
+                                var itemCalculation =
+                                    CalculateItemTotal(item);
+
+
+                                <div class="p-3 border-bottom">
+
+                                    <div class="d-flex justify-content-between">
+
+                                        <div>
+
+                                            <div class="fw-semibold">
+
+                                                @item.ProductName
+
+                                            </div>
+
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                item.CategoryName))
+                                            {
+                                                <small class="text-muted">
+
+                                                    @item.CategoryName
+
+                                                </small>
+                                            }
+
+
+                                            <small class="text-muted d-block">
+
+                                                @item.Quantity
+                                                ×
+                                                ₱@item.UnitPrice.ToString("N2")
+
+                                            </small>
+
+
+                                            @if (itemCalculation.DiscountAmount > 0)
+                                            {
+                                                <small class="text-danger d-block">
+
+                                                    @if (itemCalculation.Discount is not null)
+                                                    {
+                                                        @itemCalculation.Discount.Name
+
+                                                        <span>
+                                                            —
+                                                        </span>
+                                                    }
+
+                                                    -₱@itemCalculation.DiscountAmount.ToString("N2")
+
+                                                </small>
+                                            }
+
+                                        </div>
+
+
+                                        <div class="text-end">
+
+                                            <div class="fw-semibold">
+
+                                                ₱@itemCalculation.Total.ToString("N2")
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+
+                    <!-- TOTALS -->
+
+                    <div class="mt-4">
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span>
+                                Gross Sales
+                            </span>
+
+                            <span>
+                                ₱@totals.Gross.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span>
+                                Discounts
+                            </span>
+
+                            <span>
+                                ₱@totals.Discount.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        @if (Selected.Transaction.Refunds > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2 text-danger">
+
+                                <span>
+                                    Refunds
+                                </span>
+
+                                <span>
+                                    -₱@Selected.Transaction.Refunds.ToString("N2")
+                                </span>
+
+                            </div>
+                        }
+
+
+                        <hr />
+
+
+                        <div class="d-flex justify-content-between fw-bold fs-5">
+
+                            <span>
+                                Net Sales
+                            </span>
+
+                            <span>
+                                ₱@totals.Net.ToString("N2")
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- COST / PROFIT -->
+
+                    <div class="mt-4 pt-3 border-top">
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span class="text-muted">
+                                Cost
+                            </span>
+
+                            <span>
+                                ₱@Selected.Transaction.Cost.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between">
+
+                            <span class="text-muted">
+                                Gross Profit
+                            </span>
+
+                            <span>
+                                ₱@Selected.Transaction.GrossProfit.ToString("N2")
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- FOOTER -->
+
+                <div class="modal-footer justify-content-between">
+
+                    @if (!Selected.Transaction.IsRefunded)
+                    {
+                        <button type="button"
+                                class="btn btn-outline-danger"
+                                @onclick="RefundTransaction"
+                                disabled="@IsRefunding">
+
+                            @if (IsRefunding)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2">
+                                </span>
+
+                                <span>
+                                    REFUNDING...
+                                </span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>
+
+                                <span>
+                                    REFUND
+                                </span>
+                            }
+
+                        </button>
+                    }
+                    else
+                    {
+                        <div></div>
+                    }
+
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="CloseModal"
+                            disabled="@IsRefunding">
+
+                        CLOSE
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="alert alert-danger position-fixed bottom-0 end-0 m-4"
+         style="z-index:1100; max-width:500px;">
+
+        @ErrorMessage
+
+    </div>
+}
+
+
+@code {
+
+    // =========================================================
+    // STATE
+    // =========================================================
+
+    private bool IsLoading;
+
+    private bool IsRefunding;
+
+    private string ErrorMessage = "";
+
+
+    // =========================================================
+    // DATE
+    // =========================================================
+
+    private DateTime DateFrom =
+        DateTime.Today.AddDays(-29);
+
+    private DateTime DateTo =
+        DateTime.Today;
+
+
+    // =========================================================
+    // FILTERS
+    // =========================================================
+
+    private string SelectedStore = "";
+
+    private string SelectedTime = "All day";
+
+    private string Search = "";
+
+
+    // =========================================================
+    // DATA
+    // =========================================================
+
+    private List<TransactionRow> AllTransactions = new();
+
+    private TransactionRow? Selected;
+
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    private int CurrentPage = 1;
+
+    private int RowsPerPage = 10;
+
+
+    // =========================================================
+    // DISCOUNT TYPE
+    // =========================================================
+
+    // Your integer discount type:
+    //
+    // 0 = Percentage
+    // 1 = Fixed amount
+    //
+    private const int DiscountTypePercentage = 0;
+
+    private const int DiscountTypeAmount = 1;
+
+
+    // =========================================================
+    // INITIALIZE
+    // =========================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            await Data.LoadAllAsync();
+
+            BuildTransactions();
+        }
+        catch
+        {
+            AllTransactions = new();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    // =========================================================
+    // BUILD DATA
+    // =========================================================
+
+    private void BuildTransactions()
+    {
+        AllTransactions =
+            Data.Transactions
+                .Select(transaction =>
+                {
+                    var store =
+                        transaction.StoreId.HasValue
+                            ? Data.Stores.FirstOrDefault(
+                                x =>
+                                    x.Id ==
+                                    transaction.StoreId.Value)
+                            : null;
+
+
+                    var items =
+                        Data.TransactionItems
+                            .Where(x =>
+                                x.TransactionId ==
+                                transaction.Id)
+                            .ToList();
+
+
+                    return new TransactionRow
+                    {
+                        Transaction = transaction,
+
+                        StoreName =
+                            store?.Name ??
+                            "Unknown store",
+
+                        Items = items
+                    };
+                })
+                .OrderByDescending(x =>
+                    x.Transaction.TransactionDate)
+                .ToList();
+    }
+
+
+    // =========================================================
+    // DISCOUNT LOOKUP
+    // =========================================================
+
+    private Discount? GetDiscount(
+        TransactionItem item)
+    {
+        if (!item.DiscountId.HasValue)
+            return null;
+
+
+        return Data.Discounts.FirstOrDefault(
+            x =>
+                x.Id ==
+                item.DiscountId.Value);
+    }
+
+
+    // =========================================================
+    // ITEM CALCULATION
+    // =========================================================
+
+    private ItemCalculation CalculateItemTotal(
+        TransactionItem item)
+    {
+        decimal subtotal =
+            item.UnitPrice *
+            item.Quantity;
+
+
+        Discount? discount =
+            GetDiscount(item);
+
+
+        if (discount is null)
+        {
+            return new ItemCalculation
+            {
+                Subtotal = subtotal,
+
+                DiscountAmount = 0,
+
+                Total = subtotal,
+
+                Discount = null
+            };
+        }
+
+
+        decimal discountAmount;
+
+
+        int discountType =
+            Convert.ToInt32(discount.DiscountType);
+
+
+        // =====================================================
+        // PERCENTAGE
+        // =====================================================
+
+        if (discountType ==
+            DiscountTypePercentage)
+        {
+            discountAmount =
+                subtotal *
+                (discount.Value / 100m);
+        }
+
+
+        // =====================================================
+        // FIXED AMOUNT
+        // =====================================================
+
+        else if (discountType ==
+                 DiscountTypeAmount)
+        {
+            discountAmount =
+                discount.Value;
+        }
+
+
+        // =====================================================
+        // UNKNOWN TYPE
+        // =====================================================
+
+        else
+        {
+            discountAmount = 0;
+        }
+
+
+        // Never allow a discount to make
+        // the item total negative.
+
+        discountAmount =
+            Math.Min(
+                discountAmount,
+                subtotal);
+
+
+        discountAmount =
+            Math.Max(
+                0,
+                discountAmount);
+
+
+        decimal total =
+            subtotal -
+            discountAmount;
+
+
+        return new ItemCalculation
+        {
+            Subtotal = subtotal,
+
+            DiscountAmount =
+                discountAmount,
+
+            Total =
+                total,
+
+            Discount =
+                discount
+        };
+    }
+
+
+    // =========================================================
+    // TRANSACTION CALCULATION
+    // =========================================================
+
+    private TransactionCalculation CalculateTransactionTotals(
+        TransactionRow row)
+    {
+        decimal gross = 0;
+
+        decimal discount = 0;
+
+
+        foreach (var item in row.Items)
+        {
+            var calculation =
+                CalculateItemTotal(item);
+
+
+            gross +=
+                calculation.Subtotal;
+
+
+            discount +=
+                calculation.DiscountAmount;
+        }
+
+
+        decimal net =
+            gross -
+            discount;
+
+
+        return new TransactionCalculation
+        {
+            Gross = gross,
+
+            Discount = discount,
+
+            Net = net
+        };
+    }
+
+    public string SelectedType = "";
+
+
+    // =========================================================
+    // FILTERED TRANSACTIONS
+    // =========================================================
+
+    private IEnumerable<TransactionRow> FilteredTransactions
+    {
+        get
+        {
+            IEnumerable<TransactionRow> result =
+                AllTransactions;
+
+
+            // =================================================
+            // DATE
+            // =================================================
+
+            DateTime start =
+                DateFrom.Date;
+
+            DateTime end =
+                DateTo.Date.AddDays(1);
+
+
+            result =
+                result.Where(x =>
+                    x.Transaction.TransactionDate >= start &&
+                    x.Transaction.TransactionDate < end);
+
+
+            // =================================================
+            // STORE
+            // =================================================
+
+            if (!string.IsNullOrWhiteSpace(
+                SelectedStore) &&
+                Guid.TryParse(
+                    SelectedStore,
+                    out Guid storeId))
+            {
+                result =
+                    result.Where(x =>
+                        x.Transaction.StoreId ==
+                        storeId);
+            }
+
+
+            // =================================================
+            // TYPE
+            // =================================================
+
+            if (SelectedType == "sale")
+            {
+                result =
+                    result.Where(x =>
+                        !x.Transaction.IsRefunded);
+            }
+            else if (SelectedType == "refund")
+            {
+                result =
+                    result.Where(x =>
+                        x.Transaction.IsRefunded);
+            }
+
+
+            // =================================================
+            // TIME
+            // =================================================
+
+            if (SelectedTime != "All day")
+            {
+                result =
+                    result.Where(x =>
+                        MatchesTime(
+                            x.Transaction.TransactionDate));
+            }
+
+
+            // =================================================
+            // SEARCH
+            // =================================================
+
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string search =
+                    Search.Trim();
+
+
+                result =
+                    result.Where(x =>
+                        x.Transaction.ReceiptId
+                            .Contains(
+                                search,
+                                StringComparison.OrdinalIgnoreCase)
+
+                        ||
+
+                        x.StoreName
+                            .Contains(
+                                search,
+                                StringComparison.OrdinalIgnoreCase)
+
+                        ||
+
+                        (x.Transaction.IsRefunded
+                            ? "refunded"
+                            : "sale")
+                            .Contains(
+                                search,
+                                StringComparison.OrdinalIgnoreCase)
+
+                        ||
+
+                        x.Items.Any(item =>
+                            item.ProductName
+                                .Contains(
+                                    search,
+                                    StringComparison.OrdinalIgnoreCase))
+
+                        ||
+
+                        x.Items.Any(item =>
+                            GetDiscount(item)?
+                                .Name
+                                .Contains(
+                                    search,
+                                    StringComparison.OrdinalIgnoreCase)
+                            == true)
+                    );
+            }
+
+
+            return result
+                .OrderByDescending(x =>
+                    x.Transaction.TransactionDate);
+        }
+    }
+
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    private IEnumerable<TransactionRow> PagedTransactions =>
+        FilteredTransactions
+            .Skip(
+                (CurrentPage - 1) *
+                RowsPerPage)
+            .Take(RowsPerPage);
+
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                FilteredTransactions.Count()
+                / (double)RowsPerPage));
+
+
+    private bool HasPreviousPage =>
+        CurrentPage > 1;
+
+
+    private bool HasNextPage =>
+        CurrentPage < TotalPages;
+
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1)
+            CurrentPage--;
+    }
+
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages)
+            CurrentPage++;
+    }
+
+
+    private void RowsPerPageChanged()
+    {
+        CurrentPage = 1;
+    }
+
+
+    // =========================================================
+    // SUMMARY
+    // =========================================================
+
+    private int SalesCount =>
+        FilteredTransactions.Count(x =>
+            !x.Transaction.IsRefunded);
+
+
+    private int RefundCount =>
+        FilteredTransactions.Count(x =>
+            x.Transaction.IsRefunded);
+
+
+    private decimal NetSales =>
+        FilteredTransactions.Sum(x =>
+        {
+            if (x.Transaction.IsRefunded)
+                return -x.Transaction.Refunds;
+
+
+            return CalculateTransactionTotals(x).Net;
+        });
+
+
+    // =========================================================
+    // FILTER CHANGED
+    // =========================================================
+
+    private Task FiltersChanged()
+    {
+        CurrentPage = 1;
+
+        BuildTransactions();
+
+        return Task.CompletedTask;
+    }
+
+
+    private async Task DateRangeChanged(
+        (DateTime Start, DateTime End) range)
+    {
+        DateFrom =
+            range.Start;
+
+        DateTo =
+            range.End;
+
+        CurrentPage = 1;
+
+        await FiltersChanged();
+    }
+
+
+    // =========================================================
+    // TIME
+    // =========================================================
+
+    private bool MatchesTime(
+        DateTime date)
+    {
+        TimeSpan time =
+            date.ToLocalTime().TimeOfDay;
+
+
+        return SelectedTime switch
+        {
+            "Morning" =>
+                time >= TimeSpan.FromHours(6) &&
+                time < TimeSpan.FromHours(12),
+
+            "Afternoon" =>
+                time >= TimeSpan.FromHours(12) &&
+                time < TimeSpan.FromHours(18),
+
+            "Evening" =>
+                time >= TimeSpan.FromHours(18) &&
+                time < TimeSpan.FromHours(24),
+
+            _ => true
+        };
+    }
+
+
+    // =========================================================
+    // VIEW
+    // =========================================================
+
+    private void ViewTransaction(
+        TransactionRow row)
+    {
+        Selected = row;
+
+        ErrorMessage = "";
+    }
+
+
+    // =========================================================
+    // CLOSE
+    // =========================================================
+
+    private void CloseModal()
+    {
+        Selected = null;
+
+        ErrorMessage = "";
+    }
+
+
+    // =========================================================
+    // REFUND
+    // =========================================================
+
+    private async Task RefundTransaction()
+    {
+        if (Selected is null)
+            return;
+
+        if (Selected.Transaction.IsRefunded)
+            return;
+
+        IsRefunding = true;
+        ErrorMessage = "";
+
+        try
+        {
+    // ============================================
+    // SAVE TO SUPABASE
+    // ============================================
+
+            await Data.MarkTransactionRefundedAsync(
+                Selected.Transaction.Id);
+
+
+    // ============================================
+    // UPDATE LOCAL TRANSACTION
+    // ============================================
+
+            Selected.Transaction.IsRefunded = true;
+
+
+            var transaction =
+                Data.Transactions.FirstOrDefault(
+                    x => x.Id == Selected.Transaction.Id);
+
+            if (transaction is not null)
+            {
+                transaction.IsRefunded = true;
+            }
+
+
+    // ============================================
+    // CLOSE MODAL
+    // ============================================
+
+            Selected = null;
+
+
+    // ============================================
+    // REBUILD TABLE
+    // ============================================
+
+            BuildTransactions();
+
+            CurrentPage = 1;
+
+
+    // Force Blazor to render the changes
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                $"Failed to refund transaction: {ex.Message}";
+        }
+        finally
+        {
+            IsRefunding = false;
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+    // =========================================================
+    // ROW MODEL
+    // =========================================================
+
+    private class TransactionRow
+    {
+        public Transaction Transaction { get; set; } = null!;
+
+        public string StoreName { get; set; } = "";
+
+        public List<TransactionItem> Items { get; set; } = new();
+    }
+
+
+    // =========================================================
+    // ITEM CALCULATION
+    // =========================================================
+
+    private class ItemCalculation
+    {
+        public decimal Subtotal { get; set; }
+
+        public decimal DiscountAmount { get; set; }
+
+        public decimal Total { get; set; }
+
+        public Discount? Discount { get; set; }
+    }
+
+
+    // =========================================================
+    // TRANSACTION CALCULATION
+    // =========================================================
+
+    private class TransactionCalculation
+    {
+        public decimal Gross { get; set; }
+
+        public decimal Discount { get; set; }
+
+        public decimal Net { get; set; }
+    }
+}

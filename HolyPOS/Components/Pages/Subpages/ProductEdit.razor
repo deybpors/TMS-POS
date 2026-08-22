@@ -1,0 +1,935 @@
+﻿@page "/admin/products/new"
+@page "/admin/products/edit/{Id}"
+@rendermode InteractiveServer
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@inject NavigationManager Navigation
+@inject DatabaseData Data
+@using HolyPOS.Components.Misc
+
+<LoadingOverlay IsLoading="@IsLoading"
+                Message="@LoadingMessage" />
+
+
+<PageTitle>
+    @(IsNew ? "Add Product" : "Edit Product")
+</PageTitle>
+
+<div class="admin-page">
+
+    <!-- PAGE HEADER -->
+    <div class="d-flex align-items-center mb-4">
+
+        <button type="button"
+                class="btn btn-link text-dark p-0 me-3"
+                @onclick="GoBack">
+
+            <i class="bi bi-arrow-left fs-4"></i>
+
+        </button>
+
+        <div>
+
+            <h1 class="mb-1">
+                @(IsNew ? "Add Product" : Product.Name)
+            </h1>
+
+            <p class="text-muted mb-0">
+                @(IsNew
+                    ? "Create a new item for your stores."
+                    : "Edit this product's information.")
+            </p>
+
+        </div>
+
+    </div>
+
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @ErrorMessage
+        </div>
+    }
+
+
+    <!-- ================================= -->
+    <!-- BASIC INFORMATION -->
+    <!-- ================================= -->
+
+    <div class="admin-card mb-3">
+
+        <div class="p-4">
+
+            <div class="row g-4">
+
+                <!-- NAME -->
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Name
+                    </label>
+
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           placeholder="Name"
+                           @bind="Product.Name" />
+
+                </div>
+
+
+                <!-- CATEGORY -->
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Category
+                    </label>
+
+                    <select class="form-select form-select-lg"
+                            @bind="Product.CategoryId">
+
+                        <option value="">
+                            No category
+                        </option>
+
+                        @foreach (var category in Categories)
+                        {
+                            <option value="@category.Key">
+                                @category.Value
+                            </option>
+                        }
+
+                    </select>
+
+                </div>
+
+
+                <!-- DESCRIPTION -->
+                <div class="col-12">
+
+                    <label class="form-label">
+                        Description
+                    </label>
+
+                    <textarea class="form-control"
+                              rows="3"
+                              placeholder="Description"
+                              @bind="Product.Description">
+                    </textarea>
+
+                </div>
+
+
+                <!-- SOLD BY -->
+                <div class="col-12">
+
+                    <label class="form-label d-block">
+                        Sold by
+                    </label>
+
+                    <div class="d-flex gap-4">
+
+                        <div class="form-check">
+
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="soldBy"
+                                   checked="@(Product.SoldBy == SellUnit.Each)"
+                                   @onchange="@(() => Product.SoldBy = SellUnit.Each)" />
+
+                            <label class="form-check-label">
+                                Each
+                            </label>
+
+                        </div>
+
+
+                        <div class="form-check">
+
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="soldBy"
+                                   checked="@(Product.SoldBy == SellUnit.Weight)"
+                                   @onchange="@(() => Product.SoldBy = SellUnit.Weight)" />
+
+                            <label class="form-check-label">
+                                Weight
+                            </label>
+
+                        </div>
+
+
+                        <div class="form-check">
+
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="soldBy"
+                                   checked="@(Product.SoldBy == SellUnit.Volume)"
+                                   @onchange="@(() => Product.SoldBy = SellUnit.Volume)" />
+
+                            <label class="form-check-label">
+                                Volume
+                            </label>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- PRICE -->
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Price
+                    </label>
+
+                    <div class="input-group">
+
+                        <span class="input-group-text">
+                            ₱
+                        </span>
+
+                        <input type="number"
+                               class="form-control"
+                               step="0.01"
+                               min="0"
+                               @bind="Product.Price" />
+
+                    </div>
+
+                    <div class="form-text">
+                        To indicate the price upon sale, leave the field blank
+                    </div>
+
+                </div>
+
+
+                <!-- COST -->
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Cost
+                    </label>
+
+                    <div class="input-group">
+
+                        <span class="input-group-text">
+                            ₱
+                        </span>
+
+                        <input type="number"
+                               class="form-control"
+                               step="0.01"
+                               min="0"
+                               @bind="Product.Cost" />
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    
+
+    <!-- ================================= -->
+    <!-- VARIANTS -->
+    <!-- ================================= -->
+
+    <div class="admin-card mb-3">
+
+        <div class="p-4">
+
+            <h3 class="mb-2">
+                Variants
+            </h3>
+
+            <p class="text-muted mb-0">
+                Use variants if an item has different sizes,
+                colors or other options.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- STORES -->
+    <!-- ================================= -->
+
+    <div class="admin-card mb-3">
+
+        <div class="p-4">
+
+            <h3 class="mb-4">
+                Stores
+            </h3>
+
+
+            <div class="form-check mb-4">
+
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="allStores"
+                       @bind="AllStores"
+                       @bind:after="AllStoresChanged" />
+
+                <label class="form-check-label"
+                       for="allStores">
+
+                    The item is available for sale in all stores
+
+                </label>
+
+            </div>
+
+
+            <div class="table-responsive">
+
+                <table class="table align-middle mb-0">
+
+                    <thead>
+
+                        <tr>
+                            <th>Available</th>
+                            <th>Store</th>
+                            <th>Price</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var store in Stores)
+                        {
+                            <tr>
+
+                                <td>
+
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           checked="@SelectedStoreIds.Contains(store.Key)"
+                                           @onchange="e => ToggleStore(store.Key, e)" />
+
+                                </td>
+
+                                <td>
+                                    @store.Value
+                                </td>
+
+                                <td>
+
+                                    <div class="input-group input-group-sm"
+                                         style="max-width:140px;">
+
+                                        <span class="input-group-text">
+                                            ₱
+                                        </span>
+
+                                        <input type="number"
+                                               class="form-control"
+                                               step="0.01"
+                                               min="0"
+                                               value="@GetStorePrice(store.Key)"
+                                               @onchange="e => SetStorePrice(store.Key, e)" />
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- MODIFIERS -->
+    <!-- ================================= -->
+
+    <div class="admin-card mb-3">
+
+        <div class="p-4">
+
+            <h3 class="mb-4">
+                Modifiers
+            </h3>
+
+            @foreach (var modifier in Modifiers)
+            {
+                <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+
+                    <div>
+
+                        <div class="fw-medium">
+                            @modifier.Value
+                        </div>
+
+                        <small class="text-muted">
+                            Available in all stores
+                        </small>
+
+                    </div>
+
+                    <div class="form-check form-switch">
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               checked="@SelectedModifierIds.Contains(modifier.Key)"
+                               @onchange="e => ToggleModifier(modifier.Key, e)" />
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+<!-- ================================= -->
+<!-- POS REPRESENTATION -->
+<!-- ================================= -->
+
+<div class="admin-card mb-3">
+
+    <div class="p-4">
+
+        <h3 class="mb-4">
+            Representation on POS
+        </h3>
+
+
+        <!-- REPRESENTATION TYPE -->
+        <div class="d-flex gap-4 mb-4">
+
+            <div class="form-check">
+
+                <input class="form-check-input"
+                       type="radio"
+                       id="representationColor"
+                       name="representation"
+                       checked="@UseColorRepresentation"
+                       @onchange="@(() => UseColorRepresentation = true)" />
+
+                <label class="form-check-label"
+                       for="representationColor">
+
+                    Color
+
+                </label>
+
+            </div>
+
+
+            <div class="form-check">
+
+                <input class="form-check-input"
+                       type="radio"
+                       id="representationImage"
+                       name="representation"
+                       checked="@(!UseColorRepresentation)"
+                       @onchange="@(() => UseColorRepresentation = false)" />
+
+                <label class="form-check-label"
+                       for="representationImage">
+
+                    Image
+
+                </label>
+
+            </div>
+
+        </div>
+
+
+        @if (UseColorRepresentation)
+        {
+            <!-- COLOR + SHAPE -->
+            <div>
+
+                <label class="form-label">
+                    Color
+                </label>
+
+                <div class="d-flex flex-wrap gap-2 mb-4">
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#DDDDDD;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#F44336;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#E91E63;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#FF9800;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#CDDC39;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#4CAF50;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#2196F3;width:42px;height:42px;">
+                    </button>
+
+                    <button type="button"
+                            class="btn"
+                            style="background:#9C27B0;width:42px;height:42px;">
+                    </button>
+
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- IMAGE URL -->
+            <div>
+
+                <label for="productImageUrl"
+                       class="form-label">
+
+                    Image URL
+
+                </label>
+
+                <input id="productImageUrl"
+                       type="url"
+                       class="form-control"
+                       placeholder="https://example.com/product-image.jpg"
+                       @bind="Product.ImageUrl" />
+
+                <div class="form-text">
+                    Enter the URL of the image you want to display on the POS.
+                </div>
+
+
+                @if (!string.IsNullOrWhiteSpace(Product.ImageUrl))
+                {
+                    <div class="mt-3">
+
+                        <label class="form-label">
+                            Preview
+                        </label>
+
+                        <div>
+                            <img src="@Product.ImageUrl"
+                                 alt="@Product.Name"
+                                 class="img-thumbnail"
+                                 style="width:160px;height:160px;object-fit:cover;" />
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+    </div>
+
+</div>
+
+
+    <!-- ================================= -->
+    <!-- ACTIONS -->
+    <!-- ================================= -->
+
+    <div class="d-flex justify-content-end gap-2 pb-4">
+
+        @if (!IsNew)
+        {
+            <button type="button"
+                    class="btn btn-outline-danger me-auto"
+                    @onclick="Delete">
+
+                DELETE
+
+            </button>
+        }
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="GoBack">
+
+            CANCEL
+
+        </button>
+
+        <button type="button"
+                class="btn btn-primary"
+                @onclick="Save">
+
+            SAVE
+
+        </button>
+
+    </div>
+
+</div>
+
+
+@code
+{
+    [Parameter]
+    public string? Id { get; set; }
+
+    private bool IsLoading;
+    private string LoadingMessage = "Loading...";
+    private Product Product = new();
+
+    private string ErrorMessage = "";
+
+    private bool AllStores;
+
+    private bool CompositeItem;
+
+    private bool TrackStock;
+
+    private bool UseColorRepresentation = true;
+
+
+    private bool IsNew => string.IsNullOrEmpty(Id);
+
+
+    // ============================================================
+    // DROPDOWN DATA
+    // ============================================================
+
+    private Dictionary<Guid, string> Categories =>
+        Data.Categories
+            .Where(x => x.IsActive)
+            .ToDictionary(
+                x => x.Id,
+                x => x.Name);
+
+
+    private Dictionary<Guid, string> Stores =>
+        Data.Stores
+            .ToDictionary(
+                x => x.Id,
+                x => x.Name);
+
+
+    private Dictionary<Guid, string> Modifiers =>
+        Data.Modifiers
+            .ToDictionary(
+                x => x.Id,
+                x => x.Name);
+
+
+    // ============================================================
+    // SELECTED STORES
+    // ============================================================
+    private HashSet<Guid> SelectedStoreIds = new();
+    private Dictionary<Guid, decimal> StorePrices = new();
+
+
+    // ============================================================
+    // SELECTED MODIFIERS
+    // ============================================================
+
+    private HashSet<Guid> SelectedModifierIds = new();
+
+
+    // ============================================================
+    // LOAD PAGE
+    // ============================================================
+
+    protected override async Task OnParametersSetAsync()
+    {
+    // Make sure the database data is loaded
+        if (Data.Products.Count == 0)
+        {
+            await Data.LoadAllAsync();
+        }
+
+    // ==============================
+    // NEW PRODUCT
+    // ==============================
+
+        if (string.IsNullOrEmpty(Id))
+        {
+            Product = new Product
+            {
+                SoldBy = SellUnit.Each
+            };
+
+            return;
+        }
+
+
+    // ==============================
+    // EDIT PRODUCT
+    // ==============================
+
+        if (!Guid.TryParse(Id, out var productId))
+        {
+            Navigation.NavigateTo("/admin/products");
+            return;
+        }
+
+
+        var existing = Data.Products
+            .FirstOrDefault(x => x.Id == productId);
+
+
+        if (existing == null)
+        {
+            Navigation.NavigateTo("/admin/products");
+            return;
+        }
+
+
+        Product = existing;
+
+
+    // ==============================
+    // LOAD STORES
+    // ==============================
+
+        SelectedStoreIds = Data.ProductStores
+            .Where(x =>
+                x.ProductId == Product.Id &&
+                x.IsActive)
+            .Select(x => x.StoreId)
+            .ToHashSet();
+
+
+        StorePrices = Data.ProductStores
+            .Where(x =>
+                x.ProductId == Product.Id &&
+                x.IsActive)
+            .ToDictionary(
+                x => x.StoreId,
+                x => x.PriceOverride ?? Product.Price);
+
+
+    // ==============================
+    // LOAD MODIFIERS
+    // ==============================
+
+        SelectedModifierIds = Data.ProductModifiers
+            .Where(x =>
+                x.ProductId == Product.Id)
+            .Select(x => x.ModifierId)
+            .ToHashSet();
+
+
+    // ==============================
+    // ALL STORES
+    // ==============================
+
+        AllStores =
+            Stores.Count > 0 &&
+            SelectedStoreIds.Count == Stores.Count;
+    }
+
+
+    // ============================================================
+    // ALL STORES
+    // ============================================================
+
+    private void AllStoresChanged()
+    {
+        if (AllStores)
+        {
+            SelectedStoreIds =
+                Stores.Keys.ToHashSet();
+        }
+        else
+        {
+            SelectedStoreIds.Clear();
+        }
+    }
+    
+    private decimal GetStorePrice(Guid storeId)
+    {
+        if (StorePrices.TryGetValue(storeId, out var price))
+            return price;
+
+        return Product.Price;
+    }
+    
+    private void SetStorePrice(Guid storeId, ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var price))
+        {
+            StorePrices[storeId] = price;
+        }
+    }
+
+    // ============================================================
+    // STORE TOGGLE
+    // ============================================================
+
+    private void ToggleStore(
+        Guid storeId,
+        ChangeEventArgs e)
+    {
+        bool enabled =
+            e.Value is bool value && value;
+
+        if (enabled)
+        {
+            SelectedStoreIds.Add(storeId);
+
+            if (!StorePrices.ContainsKey(storeId))
+            {
+                StorePrices[storeId] = Product.Price;
+            }
+        }
+        else
+        {
+            SelectedStoreIds.Remove(storeId);
+
+            StorePrices.Remove(storeId);
+
+            AllStores = false;
+        }
+    }
+
+
+    // ============================================================
+    // MODIFIER TOGGLE
+    // ============================================================
+
+    private void ToggleModifier(
+        Guid modifierId,
+        ChangeEventArgs e)
+    {
+        bool enabled =
+            e.Value is bool value && value;
+
+
+        if (enabled)
+        {
+            SelectedModifierIds.Add(modifierId);
+        }
+        else
+        {
+            SelectedModifierIds.Remove(modifierId);
+        }
+    }
+
+
+    // ============================================================
+    // SAVE
+    // ============================================================
+
+    private async Task Save()
+    {
+        if (IsLoading)
+            return;
+
+    // validation first...
+
+        IsLoading = true;
+        LoadingMessage = IsNew
+            ? "Creating product..."
+            : "Saving product...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+        try
+        {
+            await Data.SaveProductAsync(
+                Product,
+                SelectedStoreIds,
+                StorePrices,
+                SelectedModifierIds);
+
+            Navigation.NavigateTo("/admin/products");
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+            ErrorMessage = ex.ToString();
+        }
+    }
+
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    private async Task Delete()
+    {
+        if (IsLoading)
+            return;
+
+        if (Product.Id == Guid.Empty)
+            return;
+
+        IsLoading = true;
+        LoadingMessage = "Deleting product...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+        try
+        {
+            await Data.DeleteProductAsync(Product.Id);
+
+            Navigation.NavigateTo("/admin/products");
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+            ErrorMessage = ex.ToString();
+        }
+    }
+
+
+    // ============================================================
+    // BACK
+    // ============================================================
+
+    private async Task GoBack()
+    {
+        if (IsLoading)
+            return;
+
+        IsLoading = true;
+        LoadingMessage = "Going back...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+        Navigation.NavigateTo("/admin/products");
+    }
+}

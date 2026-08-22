@@ -1,0 +1,683 @@
+@page "/admin/stores"
+@rendermode InteractiveServer
+
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+
+@inject DatabaseData Data
+
+<PageTitle>Stores</PageTitle>
+
+
+<div class="container-fluid py-4">
+
+    <!-- ===================================================== -->
+    <!-- HEADER -->
+    <!-- ===================================================== -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h1 class="mb-1">
+                Stores
+            </h1>
+
+            <p class="text-muted mb-0">
+                Manage the branches where you sell.
+            </p>
+
+        </div>
+
+
+        <button type="button"
+                class="btn btn-primary"
+                @onclick="Add">
+
+            + Add Store
+
+        </button>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- STORE TABLE -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th class="px-4 py-3">
+                            Name
+                        </th>
+
+                        <th class="py-3">
+                            Address
+                        </th>
+
+                        <th class="py-3 text-end">
+                            Number of POS
+                        </th>
+
+                        <th class="py-3">
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    @if (IsLoading)
+                    {
+                        <tr>
+
+                            <td colspan="4"
+                                class="text-center py-5">
+
+                                <div class="spinner-border text-primary"
+                                     role="status">
+
+                                    <span class="visually-hidden">
+                                        Loading...
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+                    }
+                    else if (!MyStores.Any())
+                    {
+                        <tr>
+
+                            <td colspan="4"
+                                class="text-center text-muted py-5">
+
+                                No stores found.
+
+                            </td>
+
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var store in Data.Stores)
+                        {
+                            <tr>
+
+                                <td class="px-4">
+
+                                    <div class="fw-semibold">
+                                        @store.Name
+                                    </div>
+
+                                    @if (!store.Active)
+                                    {
+                                        <span class="badge bg-secondary">
+                                            Inactive
+                                        </span>
+                                    }
+
+                                </td>
+
+
+                                <td>
+
+                                    @store.Address
+
+                                </td>
+                                
+
+                                <td class="text-end px-4">
+
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-sm"
+                                            @onclick="() => Edit(store)">
+
+                                        Edit
+
+                                    </button>
+
+                                </td>
+
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- STORE MODAL -->
+    <!-- ===================================================== -->
+
+    @if (Show)
+    {
+        <div class="modal-backdrop fade show"></div>
+
+
+        <div id="storeModal"
+             class="modal fade show d-block"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true">
+
+            <div class="modal-dialog modal-dialog-centered">
+
+                <div class="modal-content">
+
+
+                    <!-- ===================================== -->
+                    <!-- BODY -->
+                    <!-- ===================================== -->
+
+                    <div class="modal-body p-4">
+
+                        <!-- STORE ICON -->
+
+                        <div class="text-center mb-4">
+
+                            <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center"
+                                 style="width:105px;height:105px;">
+
+                                <span style="font-size:48px;">
+                                    🏪
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ERROR -->
+
+                        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                        {
+                            <div class="alert alert-danger"
+                                 role="alert">
+
+                                @ErrorMessage
+
+                            </div>
+                        }
+
+
+                        <!-- NAME -->
+
+                        <div class="mb-4">
+
+                            <label class="form-label text-muted">
+                                Name
+                            </label>
+
+                            <input type="text"
+                                   class="form-control form-control-lg"
+                                   @bind="Name"
+                                   placeholder="Store name" />
+
+                        </div>
+
+
+                        <!-- ADDRESS -->
+
+                        <div class="mb-4">
+
+                            <label class="form-label text-muted">
+                                Address
+                            </label>
+
+                            <input type="text"
+                                   class="form-control"
+                                   @bind="Address"
+                                   placeholder="Address" />
+
+                        </div>
+                        
+
+
+                        <!-- ACTIVE -->
+
+                        <div class="form-check">
+
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="activeStore"
+                                   @bind="Active" />
+
+                            <label class="form-check-label"
+                                   for="activeStore">
+
+                                Active
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ===================================== -->
+                    <!-- FOOTER -->
+                    <!-- ===================================== -->
+
+                    <div class="modal-footer justify-content-between">
+
+
+                        @if (Editing is not null)
+                        {
+                            <button type="button"
+                                    class="btn btn-outline-danger"
+                                    @onclick="Delete"
+                                    disabled="@IsSaving">
+
+                                Delete
+
+                            </button>
+                        }
+                        else
+                        {
+                            <div></div>
+                        }
+
+
+                        <div class="d-flex gap-2">
+
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    @onclick="Close"
+                                    disabled="@IsSaving">
+
+                                Cancel
+
+                            </button>
+
+
+                            <button type="button"
+                                    class="btn btn-primary"
+                                    @onclick="Save"
+                                    disabled="@IsSaving">
+
+                                @if (IsSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2">
+                                    </span>
+
+                                    <span>
+                                        Saving...
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        Save
+                                    </span>
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+
+@code {
+
+    // =========================================================
+    // STATE
+    // =========================================================
+
+    private bool Show;
+
+    private bool IsLoading;
+
+    private bool IsSaving;
+
+
+    private Store? Editing;
+
+
+    // =========================================================
+    // FORM
+    // =========================================================
+
+    private string Name = "";
+
+    private string Address = "";
+
+    private string City = "";
+
+    private string Province = "";
+
+    private string PostalCode = "";
+
+    private string Country = "Philippines";
+
+    private string Phone = "";
+
+    private string Description = "";
+
+    private int NumberOfPOS = 1;
+
+    private bool Active = true;
+
+    private string ErrorMessage = "";
+
+
+    // =========================================================
+    // STORES
+    // =========================================================
+
+    private List<Store> MyStores =>
+        Data.Stores;
+
+
+    // =========================================================
+    // INITIALIZE
+    // =========================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            await Data.LoadAllAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    // =========================================================
+    // ADD
+    // =========================================================
+
+    private void Add()
+    {
+        Editing = null;
+
+        ResetForm();
+
+        Show = true;
+    }
+
+
+    // =========================================================
+    // EDIT
+    // =========================================================
+
+    private void Edit(Store store)
+    {
+        Editing = store;
+
+        Name =
+            store.Name;
+
+        Address =
+            store.Address;
+
+        Active =
+            store.Active;
+
+        ErrorMessage = "";
+
+        Show = true;
+    }
+
+
+    // =========================================================
+    // CLOSE
+    // =========================================================
+
+    private void Close()
+    {
+        if (IsSaving)
+            return;
+
+        Show = false;
+
+        ResetForm();
+    }
+
+
+    // =========================================================
+    // SAVE
+    // =========================================================
+
+    private async Task Save()
+    {
+        ErrorMessage = "";
+
+
+        // =====================================================
+        // VALIDATION
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage =
+                "Please enter a store name.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(Address))
+        {
+            ErrorMessage =
+                "Please enter a store address.";
+
+            return;
+        }
+
+
+        if (NumberOfPOS < 1)
+        {
+            ErrorMessage =
+                "Number of POS must be at least 1.";
+
+            return;
+        }
+
+
+        IsSaving = true;
+
+
+        try
+        {
+            // =================================================
+            // CREATE
+            // =================================================
+
+            Store store;
+
+
+            if (Editing is null)
+            {
+                store = new Store
+                {
+                    Id = Guid.NewGuid()
+                };
+            }
+            else
+            {
+                store = Editing;
+            }
+
+
+            // =================================================
+            // COPY FORM
+            // =================================================
+
+            store.Name =
+                Name.Trim();
+
+            store.Address =
+                Address.Trim();
+
+            store.Active =
+                Active;
+
+
+            // =================================================
+            // SUPABASE
+            // =================================================
+
+            Store savedStore =
+                await Data.SaveStoreAsync(store);
+
+
+            // =================================================
+            // LOCAL CACHE
+            // =================================================
+
+            if (Editing is null)
+            {
+                Data.Stores.Add(
+                    savedStore);
+            }
+
+
+            // =================================================
+            // CLOSE
+            // =================================================
+
+            ResetForm();
+
+            Editing = null;
+
+            Show = false;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+
+    // =========================================================
+    // DELETE
+    // =========================================================
+
+    private async Task Delete()
+    {
+        if (Editing is null)
+            return;
+
+
+        if (Editing.Id == Guid.Empty)
+            return;
+
+
+        IsSaving = true;
+
+        ErrorMessage = "";
+
+
+        try
+        {
+            // =================================================
+            // SUPABASE
+            // =================================================
+
+            await Data.DeactivateStoreAsync(
+                Editing.Id);
+
+
+            // =================================================
+            // LOCAL CACHE
+            // =================================================
+
+            Data.Stores.Remove(
+                Editing);
+
+
+            // =================================================
+            // CLOSE
+            // =================================================
+
+            Editing = null;
+
+            ResetForm();
+
+            Show = false;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+
+    // =========================================================
+    // RESET
+    // =========================================================
+
+    private void ResetForm()
+    {
+        Name = "";
+
+        Address = "";
+
+        City = "";
+
+        Province = "";
+
+        PostalCode = "";
+
+        Country = "Philippines";
+
+        Phone = "";
+
+        Description = "";
+
+        NumberOfPOS = 1;
+
+        Active = true;
+
+        ErrorMessage = "";
+    }
+}

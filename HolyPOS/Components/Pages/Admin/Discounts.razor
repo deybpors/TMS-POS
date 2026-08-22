@@ -1,0 +1,993 @@
+@page "/admin/discounts"
+@rendermode InteractiveServer
+
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Misc
+
+@inject IJSRuntime JS
+@inject DatabaseData Data
+
+<PageTitle>Discounts</PageTitle>
+
+
+<!-- ============================================================ -->
+<!-- LOADING -->
+<!-- ============================================================ -->
+
+<LoadingOverlay IsLoading="@IsLoading"
+                Message="@LoadingMessage" />
+
+
+<div class="admin-page">
+
+    <div class="admin-card">
+
+        <!-- ==================================================== -->
+        <!-- TOP BAR -->
+        <!-- ==================================================== -->
+
+        <div class="d-flex justify-content-between align-items-start p-4">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#discountModal"
+                    @onclick="PrepareAdd">
+
+                + ADD DISCOUNT
+
+            </button>
+
+        </div>
+
+
+        <!-- ==================================================== -->
+        <!-- TABLE HEADER -->
+        <!-- ==================================================== -->
+
+        <div class="border-bottom px-4 py-3">
+
+            <div class="row align-items-center">
+
+                <div class="col-auto"
+                     style="width:45px;">
+
+                    <input type="checkbox"
+                           class="form-check-input"
+                           style="width:18px;height:18px;" />
+
+                </div>
+
+                <div class="col">
+                    Name
+                </div>
+
+                <div class="col-2">
+                    Type
+                </div>
+
+                <div class="col-2">
+                    Value
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================== -->
+        <!-- DISCOUNTS -->
+        <!-- ==================================================== -->
+
+        @foreach (var discount in Data.Discounts)
+        {
+            <div class="border-bottom px-4 py-3">
+
+                <div class="row align-items-center">
+
+
+                    <!-- CHECKBOX -->
+                    <div class="col-auto"
+                         style="width:45px;">
+
+                        <input type="checkbox"
+                               class="form-check-input"
+                               style="width:18px;height:18px;" />
+
+                    </div>
+
+
+                    <!-- NAME -->
+                    <div class="col">
+
+                        <button type="button"
+                                class="btn btn-link text-dark text-decoration-none p-0 text-start"
+                                data-bs-toggle="modal"
+                                data-bs-target="#discountModal"
+                                @onclick="() => Edit(discount)">
+
+                            @discount.Name
+
+                        </button>
+
+                    </div>
+
+
+                    <!-- TYPE -->
+                    <div class="col-2">
+
+                        @GetDiscountTypeName(discount.DiscountType)
+
+                    </div>
+
+
+                    <!-- VALUE -->
+                    <div class="col-2">
+
+                        @if (discount.DiscountType == DiscountType.Percentage)
+                        {
+                            @($"{discount.Value:0.##}%")
+                        }
+                        else if (discount.DiscountType == DiscountType.FixedAmount)
+                        {
+                            @($"₱{discount.Value:N2}")
+                        }
+
+                    </div>
+
+                    
+
+                </div>
+
+            </div>
+        }
+
+
+        <!-- ==================================================== -->
+        <!-- EMPTY -->
+        <!-- ==================================================== -->
+
+        @if (Data.Discounts.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+
+                No discounts found.
+
+            </div>
+        }
+
+
+        <!-- ==================================================== -->
+        <!-- PAGINATION -->
+        <!-- ==================================================== -->
+
+        <div class="d-flex align-items-center p-3">
+
+            <div class="btn-group">
+
+                <button type="button"
+                        class="btn btn-outline-secondary">
+
+                    <i class="bi bi-chevron-left"></i>
+
+                </button>
+
+                <button type="button"
+                        class="btn btn-outline-secondary">
+
+                    <i class="bi bi-chevron-right"></i>
+
+                </button>
+
+            </div>
+
+
+            <div class="ms-4 d-flex align-items-center gap-2">
+
+                <span>
+                    Page:
+                </span>
+
+                <input type="text"
+                       class="form-control text-center"
+                       value="1"
+                       style="width:40px;"
+                       readonly />
+
+                <span>
+                    of 1
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- DISCOUNT MODAL -->
+    <!-- ======================================================== -->
+
+    <div class="modal fade"
+         id="discountModal"
+         tabindex="-1"
+         aria-labelledby="discountModalLabel"
+         aria-hidden="true">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+
+                <!-- ================================================= -->
+                <!-- MODAL BODY -->
+                <!-- ================================================= -->
+
+                <div class="modal-body p-4">
+
+
+                    <!-- ================================================= -->
+                    <!-- ICON -->
+                    <!-- ================================================= -->
+
+                    <div class="text-center mb-5">
+
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
+                             style="
+                                 width:96px;
+                                 height:96px;
+                                 background-color:#f23878;
+                             ">
+
+                            <i class="bi bi-tag text-white"
+                               style="font-size:48px;">
+                            </i>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- NAME -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-5">
+
+                        <input id="discountName"
+                               type="text"
+                               class="form-control form-control-lg border-0 border-bottom rounded-0 px-0"
+                               placeholder="Name"
+                               @bind="Name"
+                               disabled="@IsLoading" />
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- TYPE -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-4">
+
+                        <div class="row align-items-center">
+
+                            <div class="col-2">
+
+                                <span>
+                                    Type
+                                </span>
+
+                            </div>
+
+                            <div class="col">
+
+                                <div class="d-flex gap-4">
+
+
+                                    <!-- PERCENTAGE -->
+
+                                    <div class="form-check">
+
+                                        <input id="percentageType"
+                                               type="radio"
+                                               class="form-check-input"
+                                               name="discountType"
+                                               checked="@(Type == DiscountType.Percentage)"
+                                               @onclick="SetPercentage"
+                                               disabled="@IsLoading" />
+
+                                        <label class="form-check-label"
+                                               for="percentageType">
+
+                                            Percentage
+
+                                        </label>
+
+                                    </div>
+
+
+                                    <!-- FIXED AMOUNT -->
+
+                                    <div class="form-check">
+
+                                        <input id="amountType"
+                                               type="radio"
+                                               class="form-check-input"
+                                               name="discountType"
+                                               checked="@(Type == DiscountType.FixedAmount)"
+                                               @onclick="SetFixedAmount"
+                                               disabled="@IsLoading" />
+
+                                        <label class="form-check-label"
+                                               for="amountType">
+
+                                            Amount
+
+                                        </label>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- VALUE -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-4">
+
+                        <label for="discountValue"
+                               class="form-label text-muted">
+
+                            Value
+
+                        </label>
+
+                        <input id="discountValue"
+                               type="number"
+                               step="0.01"
+                               min="0"
+                               class="form-control border-0 border-bottom rounded-0 px-0"
+                               @bind="Value"
+                               disabled="@IsLoading" />
+
+                        <div class="form-text">
+
+                            Enter the percentage or fixed amount
+                            of the discount.
+
+                        </div>
+
+                    </div>
+
+                    
+
+
+                    <!-- ================================================= -->
+                    <!-- ERROR -->
+                    <!-- ================================================= -->
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger">
+
+                            @ErrorMessage
+
+                        </div>
+                    }
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- STORES -->
+                <!-- ================================================= -->
+
+                <div class="border-top">
+
+                    <button type="button"
+                            class="btn w-100 text-start p-3"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#discountStores">
+
+                        <div class="d-flex align-items-center">
+
+                            <span style="width:65px;">
+                                Stores
+                            </span>
+
+                            <span class="text-muted flex-grow-1">
+
+                                @if (Data.Stores.Count > 0 &&
+                                     SelectedStoreIds.Count == Data.Stores.Count)
+                                {
+                                    @:Available in all stores
+                                }
+                                else
+                                {
+                                    @($"{SelectedStoreIds.Count} store(s) selected")
+                                }
+
+                            </span>
+
+                            <i class="bi bi-chevron-down"></i>
+
+                        </div>
+
+                    </button>
+
+
+                    <div class="collapse"
+                         id="discountStores">
+
+                        <div class="p-3 border-top">
+
+
+                            <!-- ALL STORES -->
+
+                            <div class="form-check mb-3">
+
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="allDiscountStores"
+                                       checked="@(Data.Stores.Count > 0 &&
+                                                 SelectedStoreIds.Count == Data.Stores.Count)"
+                                       @onclick="ToggleAllStores"
+                                       disabled="@IsLoading" />
+
+                                <label class="form-check-label"
+                                       for="allDiscountStores">
+
+                                    All stores
+
+                                </label>
+
+                            </div>
+
+
+                            <hr />
+
+
+                            <!-- STORES -->
+
+                            @foreach (var store in Data.Stores)
+                            {
+                                <div class="form-check mb-2">
+
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="discountStore_@store.Id"
+                                           checked="@SelectedStoreIds.Contains(store.Id)"
+                                           @onclick="() => ToggleStore(store.Id)"
+                                           disabled="@IsLoading" />
+
+                                    <label class="form-check-label"
+                                           for="discountStore_@store.Id">
+
+                                        @store.Name
+
+                                    </label>
+
+                                </div>
+                            }
+
+
+                            @if (Data.Stores.Count == 0)
+                            {
+                                <div class="text-muted small">
+
+                                    No stores found.
+
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- FOOTER -->
+                <!-- ================================================= -->
+
+                <div class="modal-footer">
+
+
+                    <!-- DELETE -->
+
+                    @if (Editing is not null)
+                    {
+                        <button type="button"
+                                class="btn btn-outline-danger me-auto"
+                                @onclick="Delete"
+                                disabled="@IsLoading">
+
+                            DELETE
+
+                        </button>
+                    }
+
+
+                    <!-- CANCEL -->
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                            disabled="@IsLoading">
+
+                        CANCEL
+
+                    </button>
+
+
+                    <!-- SAVE -->
+
+                    <!--
+                        DO NOT ADD data-bs-dismiss HERE.
+
+                        Validation happens first.
+
+                        The modal only closes after
+                        Supabase successfully saves.
+                    -->
+
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="Save"
+                            disabled="@IsLoading">
+
+                        @(Editing is null
+                            ? "SAVE"
+                            : "SAVE CHANGES")
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code
+{
+    // ============================================================
+    // FORM
+    // ============================================================
+
+    private string Name = "";
+
+    private DiscountType Type =
+        DiscountType.Percentage;
+
+    private decimal Value;
+
+
+    // ============================================================
+    // EDITING
+    // ============================================================
+
+    private Discount? Editing;
+
+
+    // ============================================================
+    // STORES
+    // ============================================================
+
+    private HashSet<Guid> SelectedStoreIds = new();
+
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    private bool IsLoading;
+
+    private string LoadingMessage =
+        "Loading...";
+
+    private string ErrorMessage = "";
+
+
+    // ============================================================
+    // INITIALIZE
+    // ============================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Data.Discounts.Count == 0 ||
+            Data.Stores.Count == 0)
+        {
+            await Data.LoadAllAsync();
+        }
+    }
+
+
+    // ============================================================
+    // PREPARE ADD
+    // ============================================================
+
+    private void PrepareAdd()
+    {
+        Editing = null;
+
+        Name = "";
+
+        Type = DiscountType.Percentage;
+
+        Value = 0;
+
+        SelectedStoreIds = Data.Stores
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // EDIT
+    // ============================================================
+
+    private void Edit(Discount discount)
+    {
+        Editing = discount;
+
+        Name = discount.Name;
+
+        Type = discount.DiscountType;
+
+        Value = discount.Value;
+
+        /*
+         * Store relationships are not being saved yet
+         * unless you have a discount_stores table.
+         *
+         * For now, select all stores when editing.
+         */
+
+        SelectedStoreIds = Data.Stores
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // DISCOUNT TYPE
+    // ============================================================
+
+    private void SetPercentage()
+    {
+        Type = DiscountType.Percentage;
+    }
+
+
+    private void SetFixedAmount()
+    {
+        Type = DiscountType.FixedAmount;
+    }
+
+
+    // ============================================================
+    // DISPLAY DISCOUNT TYPE
+    // ============================================================
+
+    private string GetDiscountTypeName(
+        DiscountType type)
+    {
+        return type switch
+        {
+            DiscountType.Percentage =>
+                "Percentage",
+
+            DiscountType.FixedAmount =>
+                "Amount",
+
+            _ =>
+                "Unknown"
+        };
+    }
+
+
+    // ============================================================
+    // STORE
+    // ============================================================
+
+    private void ToggleStore(Guid storeId)
+    {
+        if (SelectedStoreIds.Contains(storeId))
+        {
+            SelectedStoreIds.Remove(storeId);
+        }
+        else
+        {
+            SelectedStoreIds.Add(storeId);
+        }
+    }
+
+
+    private void ToggleAllStores()
+    {
+        if (SelectedStoreIds.Count ==
+            Data.Stores.Count)
+        {
+            SelectedStoreIds.Clear();
+        }
+        else
+        {
+            SelectedStoreIds = Data.Stores
+                .Select(x => x.Id)
+                .ToHashSet();
+        }
+    }
+
+
+    // ============================================================
+    // SAVE
+    // ============================================================
+
+    private async Task Save()
+    {
+        if (IsLoading)
+            return;
+
+
+        ErrorMessage = "";
+
+
+        // ========================================================
+        // VALIDATION
+        // ========================================================
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage =
+                "Please enter a discount name.";
+
+            return;
+        }
+
+
+        if (Value < 0)
+        {
+            ErrorMessage =
+                "Discount value cannot be negative.";
+
+            return;
+        }
+
+
+        if (Type == DiscountType.Percentage &&
+            Value > 100)
+        {
+            ErrorMessage =
+                "Percentage discount cannot be greater than 100%.";
+
+            return;
+        }
+
+
+        if (SelectedStoreIds.Count == 0)
+        {
+            ErrorMessage =
+                "Please select at least one store.";
+
+            return;
+        }
+
+
+        Name = Name.Trim();
+
+
+        // ========================================================
+        // DUPLICATE NAME
+        // ========================================================
+
+        bool duplicate =
+            Data.Discounts.Any(x =>
+                x.Id != Editing?.Id &&
+                string.Equals(
+                    x.Name.Trim(),
+                    Name,
+                    StringComparison.OrdinalIgnoreCase));
+
+
+        if (duplicate)
+        {
+            ErrorMessage =
+                "A discount with this name already exists.";
+
+            return;
+        }
+
+
+        // ========================================================
+        // LOADING
+        // ========================================================
+
+        IsLoading = true;
+
+        LoadingMessage =
+            Editing is null
+                ? "Adding discount..."
+                : "Saving discount...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            // ====================================================
+            // CREATE
+            // ====================================================
+
+            if (Editing is null)
+            {
+                var discount = new Discount
+                {
+                    Id = Guid.NewGuid(),
+
+                    Name = Name,
+
+                    DiscountType = Type,
+
+                    Value = Value,
+                    
+                };
+
+
+                await Data.SaveDiscountAsync(
+                    discount);
+            }
+
+
+            // ====================================================
+            // UPDATE
+            // ====================================================
+
+            else
+            {
+                Editing.Name = Name;
+
+                Editing.DiscountType = Type;
+
+                Editing.Value = Value;
+
+
+                await Data.SaveDiscountAsync(
+                    Editing);
+            }
+
+
+            // ====================================================
+            // SUCCESS
+            // ====================================================
+
+            Reset();
+
+
+            IsLoading = false;
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('discountModal')).hide();"
+            );
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to save discount: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    private async Task Delete()
+    {
+        if (IsLoading)
+            return;
+
+
+        if (Editing is null)
+            return;
+
+
+        IsLoading = true;
+
+        LoadingMessage =
+            "Deleting discount...";
+
+        ErrorMessage = "";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            await Data.DeleteDiscountAsync(
+                Editing.Id);
+
+
+            // ====================================================
+            // SUCCESS
+            // ====================================================
+
+            Reset();
+
+            IsLoading = false;
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('discountModal')).hide();"
+            );
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to delete discount: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // RESET
+    // ============================================================
+
+    private void Reset()
+    {
+        Editing = null;
+
+        Name = "";
+
+        Type =
+            DiscountType.Percentage;
+
+        Value = 0;
+
+        SelectedStoreIds.Clear();
+
+        ErrorMessage = "";
+    }
+}

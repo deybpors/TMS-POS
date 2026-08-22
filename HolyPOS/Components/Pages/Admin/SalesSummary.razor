@@ -1,0 +1,1136 @@
+@page "/admin/sales-summary"
+@rendermode InteractiveServer
+@using HolyPOS.Components.Layout
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@inject DatabaseData Data
+<PageTitle>Sales Summary</PageTitle>
+
+<div class="admin-page">
+
+    <!-- ========================================================= -->
+    <!-- HEADER -->
+    <!-- ========================================================= -->
+
+    <div class="page-header">
+
+        <div>
+            <h1>Sales Summary</h1>
+            <p>Review your sales performance for a selected period.</p>
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- FILTER BAR -->
+    <!-- ========================================================= -->
+
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+
+        <!-- DATE RANGE -->
+
+        <DateRangePicker
+            StartDate="@DateFrom"
+            EndDate="@DateTo"
+            OnDateRangeChanged="DateRangeChanged" />
+
+
+        <!-- TIME -->
+
+        <select class="form-select"
+                style="width: 130px;"
+                @bind="SelectedTime"
+                @bind:after="FiltersChanged">
+
+            <option value="All day">
+                All day
+            </option>
+
+            <option value="Morning">
+                Morning
+            </option>
+
+            <option value="Afternoon">
+                Afternoon
+            </option>
+
+            <option value="Evening">
+                Evening
+            </option>
+
+        </select>
+
+
+        <!-- STORE -->
+
+        <select class="form-select"
+                style="width: 150px;"
+                @bind="SelectedStore"
+                @bind:after="FiltersChanged">
+
+            <option value="">
+                All stores
+            </option>
+
+            @foreach (var store in Stores)
+            {
+                <option value="@store.Id">
+                    @store.Name
+                </option>
+            }
+
+        </select>
+
+
+        <!-- EMPLOYEE -->
+
+        <select class="form-select"
+                style="width: 170px;"
+                @bind="SelectedEmployee"
+                @bind:after="FiltersChanged">
+
+            <option value="">
+                All employees
+            </option>
+
+            @foreach (var employee in Employees)
+            {
+                <option value="@employee.Id">
+                    @employee.Name
+                </option>
+            }
+
+        </select>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- SUMMARY CARD -->
+    <!-- ========================================================= -->
+
+    <div class="card shadow-sm border-0 mb-3">
+
+        <div class="card-body p-0">
+
+            <div class="row g-0">
+
+                <!-- GROSS SALES -->
+
+                <div class="col">
+
+                    <div class="p-4 border-end">
+
+                        <div class="text-muted small mb-1">
+                            Gross sales
+                        </div>
+
+                        <div class="fs-4 fw-semibold">
+                            ₱@GrossSales.ToString("N2")
+                        </div>
+
+                        <div class="small @(GrossSalesChange >= 0 ? "text-success" : "text-danger")">
+
+                            @(GrossSalesChange >= 0 ? "+" : "")
+                            ₱@GrossSalesChange.ToString("N2")
+                            (@GrossSalesChangePercent.ToString("N2")%)
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- REFUNDS -->
+
+                <div class="col">
+
+                    <div class="p-4 border-end">
+
+                        <div class="text-muted small mb-1">
+                            Refunds
+                        </div>
+
+                        <div class="fs-4 fw-semibold">
+                            ₱@Refunds.ToString("N2")
+                        </div>
+
+                        <div class="small @(RefundsChange <= 0 ? "text-success" : "text-danger")">
+
+                            @(RefundsChange >= 0 ? "+" : "")
+                            ₱@RefundsChange.ToString("N2")
+                            (@RefundsChangePercent.ToString("N2")%)
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- DISCOUNTS -->
+
+                <div class="col">
+
+                    <div class="p-4 border-end">
+
+                        <div class="text-muted small mb-1">
+                            Discounts
+                        </div>
+
+                        <div class="fs-4 fw-semibold">
+                            ₱@Discounts.ToString("N2")
+                        </div>
+
+                        <div class="small @(DiscountsChange <= 0 ? "text-success" : "text-danger")">
+
+                            @(DiscountsChange >= 0 ? "+" : "")
+                            ₱@DiscountsChange.ToString("N2")
+                            (@DiscountsChangePercent.ToString("N2")%)
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- NET SALES -->
+
+                <div class="col">
+
+                    <div class="p-4 border-end">
+
+                        <div class="text-muted small mb-1">
+                            Net sales
+                        </div>
+
+                        <div class="fs-4 fw-semibold">
+                            ₱@NetSales.ToString("N2")
+                        </div>
+
+                        <div class="small @(NetSalesChange >= 0 ? "text-success" : "text-danger")">
+
+                            @(NetSalesChange >= 0 ? "+" : "")
+                            ₱@NetSalesChange.ToString("N2")
+                            (@NetSalesChangePercent.ToString("N2")%)
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- GROSS PROFIT -->
+
+                <div class="col">
+
+                    <div class="p-4">
+
+                        <div class="text-muted small mb-1">
+                            Gross profit
+                        </div>
+
+                        <div class="fs-4 fw-semibold">
+                            ₱@GrossProfit.ToString("N2")
+                        </div>
+
+                        <div class="small @(GrossProfitChange >= 0 ? "text-success" : "text-danger")">
+
+                            @(GrossProfitChange >= 0 ? "+" : "")
+                            ₱@GrossProfitChange.ToString("N2")
+                            (@GrossProfitChangePercent.ToString("N2")%)
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- DAILY SALES TABLE -->
+    <!-- ========================================================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <!-- TABLE HEADER -->
+
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+
+            <span class="fw-semibold">
+                Daily sales
+            </span>
+
+            <button type="button"
+                    class="btn btn-link text-dark text-decoration-none">
+
+                EXPORT
+
+            </button>
+
+        </div>
+
+
+        <!-- TABLE -->
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Date
+                        </th>
+
+                        <th class="text-end">
+                            Gross sales
+                        </th>
+
+                        <th class="text-end">
+                            Refunds
+                        </th>
+
+                        <th class="text-end">
+                            Discounts
+                        </th>
+
+                        <th class="text-end">
+                            Net sales
+                        </th>
+
+                        <th class="text-end">
+                            Cost of goods
+                        </th>
+
+                        <th class="text-end">
+                            Gross profit
+                        </th>
+
+                        <th class="text-end">
+                            Margin
+                        </th>
+
+                        <th class="text-end">
+                            Taxes
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    @if (IsLoading)
+                    {
+                        <tr>
+
+                            <td colspan="9"
+                                class="text-center py-5">
+
+                                <div class="spinner-border"
+                                     role="status">
+
+                                    <span class="visually-hidden">
+                                        Loading...
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+                    }
+                    else if (!DailySales.Any())
+                    {
+                        <tr>
+
+                            <td colspan="9"
+                                class="text-center text-muted py-5">
+
+                                No sales found for the selected period.
+
+                            </td>
+
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in DailySales
+                            .OrderByDescending(x => x.Date))
+                        {
+                            <tr>
+
+                                <td>
+                                    @row.Date.ToString("dd MMM yyyy")
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.Gross.ToString("N2")
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.Refunds.ToString("N2")
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.Discounts.ToString("N2")
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.Net.ToString("N2")
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.CostOfGoods.ToString("N2")
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.Profit.ToString("N2")
+                                </td>
+
+
+                                <td class="text-end">
+                                    @row.Margin.ToString("N2")%
+                                </td>
+
+
+                                <td class="text-end">
+                                    ₱@row.Taxes.ToString("N2")
+                                </td>
+
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+
+
+                @if (DailySales.Any())
+                {
+                    <tfoot>
+
+                        <tr class="table-light fw-semibold">
+
+                            <td>
+                                Total
+                            </td>
+
+                            <td class="text-end">
+                                ₱@GrossSales.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                ₱@Refunds.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                ₱@Discounts.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                ₱@NetSales.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                ₱@CostOfGoods.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                ₱@GrossProfit.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                @GrossMargin.ToString("N2")%
+                            </td>
+
+                            <td class="text-end">
+                                ₱@Taxes.ToString("N2")
+                            </td>
+
+                        </tr>
+
+                    </tfoot>
+                }
+
+            </table>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- PAGINATION -->
+        <!-- ===================================================== -->
+
+        <div class="card-footer bg-white">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+                <div class="btn-group">
+
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            disabled="@(!HasPreviousPage)"
+                            @onclick="PreviousPage">
+
+                        ‹
+
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            disabled="@(!HasNextPage)"
+                            @onclick="NextPage">
+
+                        ›
+
+                    </button>
+
+                </div>
+
+
+                <div class="text-muted small">
+
+                    Page @CurrentPage
+                    of @TotalPages
+
+                </div>
+
+
+                <div class="d-flex align-items-center gap-2">
+
+                    <span class="text-muted small">
+                        Rows per page:
+                    </span>
+
+                    <select class="form-select form-select-sm"
+                            style="width:80px;"
+                            @bind="RowsPerPage"
+                            @bind:after="RowsPerPageChanged">
+
+                        <option value="10">
+                            10
+                        </option>
+
+                        <option value="25">
+                            25
+                        </option>
+
+                        <option value="50">
+                            50
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code {
+
+    // =========================================================
+    // DATE RANGE
+    // =========================================================
+
+    private DateTime DateFrom =
+        DateTime.Today.AddDays(-29);
+
+    private DateTime DateTo =
+        DateTime.Today;
+
+
+    // =========================================================
+    // FILTERS
+    // =========================================================
+
+    private string SelectedTime = "All day";
+
+    private string SelectedStore = "";
+
+    private string SelectedEmployee = "";
+
+
+    // =========================================================
+    // CHART
+    // =========================================================
+
+    private string ChartType = "Bar";
+
+    private string ChartGrouping = "Days";
+
+
+    // =========================================================
+    // DATA
+    // =========================================================
+
+    private List<StoreOption> Stores = new();
+
+    private List<EmployeeOption> Employees = new();
+
+    private List<SalesRow> DailySales = new();
+
+
+    // =========================================================
+    // STATE
+    // =========================================================
+
+    private bool IsLoading;
+
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    private int CurrentPage = 1;
+
+    private int RowsPerPage = 10;
+
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                DailySales.Count /
+                (double)RowsPerPage));
+
+
+    private bool HasPreviousPage =>
+        CurrentPage > 1;
+
+
+    private bool HasNextPage =>
+        CurrentPage < TotalPages;
+
+
+    // =========================================================
+    // SUMMARY
+    // =========================================================
+
+    private decimal GrossSales =>
+        DailySales.Sum(x => x.Gross);
+
+
+    private decimal Refunds =>
+        DailySales.Sum(x => x.Refunds);
+
+
+    private decimal Discounts =>
+        DailySales.Sum(x => x.Discounts);
+
+
+    private decimal NetSales =>
+        DailySales.Sum(x => x.Net);
+
+
+    private decimal CostOfGoods =>
+        DailySales.Sum(x => x.CostOfGoods);
+
+
+    private decimal GrossProfit =>
+        DailySales.Sum(x => x.Profit);
+
+
+    // Your transactions table currently has no taxes column.
+    private decimal Taxes => 0;
+
+
+    private decimal GrossMargin =>
+        GrossSales == 0
+            ? 0
+            : GrossProfit / GrossSales * 100;
+
+
+    // =========================================================
+    // PREVIOUS PERIOD
+    // =========================================================
+
+    private decimal GrossSalesPrevious;
+
+    private decimal RefundsPrevious;
+
+    private decimal DiscountsPrevious;
+
+    private decimal NetSalesPrevious;
+
+    private decimal GrossProfitPrevious;
+
+
+    private decimal GrossSalesChange =>
+        GrossSales - GrossSalesPrevious;
+
+
+    private decimal RefundsChange =>
+        Refunds - RefundsPrevious;
+
+
+    private decimal DiscountsChange =>
+        Discounts - DiscountsPrevious;
+
+
+    private decimal NetSalesChange =>
+        NetSales - NetSalesPrevious;
+
+
+    private decimal GrossProfitChange =>
+        GrossProfit - GrossProfitPrevious;
+
+
+    private decimal GrossSalesChangePercent =>
+        GetPercentageChange(
+            GrossSalesPrevious,
+            GrossSales);
+
+
+    private decimal RefundsChangePercent =>
+        GetPercentageChange(
+            RefundsPrevious,
+            Refunds);
+
+
+    private decimal DiscountsChangePercent =>
+        GetPercentageChange(
+            DiscountsPrevious,
+            Discounts);
+
+
+    private decimal NetSalesChangePercent =>
+        GetPercentageChange(
+            NetSalesPrevious,
+            NetSales);
+
+
+    private decimal GrossProfitChangePercent =>
+        GetPercentageChange(
+            GrossProfitPrevious,
+            GrossProfit);
+
+
+    private static decimal GetPercentageChange(
+        decimal previous,
+        decimal current)
+    {
+        if (previous == 0)
+            return current == 0
+                ? 0
+                : 100;
+
+        return
+            (current - previous)
+            / previous
+            * 100;
+    }
+
+
+    // =========================================================
+    // INITIALIZE
+    // =========================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+
+    // =========================================================
+    // DATE RANGE
+    // =========================================================
+
+    private async Task DateRangeChanged(
+        (DateTime Start, DateTime End) range)
+    {
+        DateFrom = range.Start;
+
+        DateTo = range.End;
+
+        CurrentPage = 1;
+
+        await LoadSales();
+    }
+
+
+    // =========================================================
+    // FILTERS
+    // =========================================================
+
+    private async Task FiltersChanged()
+    {
+        CurrentPage = 1;
+
+        await LoadSales();
+    }
+
+
+    // =========================================================
+    // ROWS PER PAGE
+    // =========================================================
+
+    private void RowsPerPageChanged()
+    {
+        CurrentPage = 1;
+    }
+
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1)
+            CurrentPage--;
+    }
+
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages)
+            CurrentPage++;
+    }
+
+
+    // =========================================================
+    // LOAD DATA
+    // =========================================================
+
+    private async Task LoadData()
+    {
+        IsLoading = true;
+
+        try
+        {
+            await Data.LoadAllAsync();
+
+            Stores = Data.Stores
+                .Select(x => new StoreOption
+                {
+                    Id = x.Id.ToString(),
+                    Name = x.Name
+                })
+                .OrderBy(x => x.Name)
+                .ToList();
+
+            await LoadSales();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    // =========================================================
+    // LOAD SALES FROM SUPABASE
+    // =========================================================
+
+    private async Task LoadSales()
+{
+    IsLoading = true;
+
+    try
+    {
+        // Make sure the latest transaction data is loaded
+        await Data.LoadAllAsync();
+
+
+        // =====================================================
+        // CURRENT PERIOD
+        // =====================================================
+
+        DateTime startDate =
+            DateFrom.Date;
+
+        DateTime endDate =
+            DateTo.Date.AddDays(1);
+
+
+        List<Transaction> transactions =
+            Data.Transactions
+                .Where(x =>
+                    x.TransactionDate >= startDate &&
+                    x.TransactionDate < endDate)
+                .ToList();
+
+
+        // =====================================================
+        // STORE
+        // =====================================================
+
+        if (!string.IsNullOrWhiteSpace(SelectedStore) &&
+            Guid.TryParse(
+                SelectedStore,
+                out Guid storeId))
+        {
+            transactions =
+                transactions
+                    .Where(x =>
+                        x.StoreId == storeId)
+                    .ToList();
+        }
+
+
+        // =====================================================
+        // TIME
+        // =====================================================
+
+        transactions =
+            transactions
+                .Where(MatchesTime)
+                .ToList();
+
+
+        // =====================================================
+        // GROUP BY DAY
+        // =====================================================
+
+        DailySales =
+            transactions
+                .GroupBy(x =>
+                    x.TransactionDate.Date)
+                .Select(group =>
+                {
+                    return new SalesRow
+                    {
+                        Date =
+                            group.Key,
+
+                        Gross =
+                            group.Sum(x =>
+                                x.GrossSales),
+
+                        Refunds =
+                            group.Sum(x =>
+                                x.Refunds),
+
+                        Discounts =
+                            group.Sum(x =>
+                                x.Discounts),
+
+                        Net =
+                            group.Sum(x =>
+                                x.NetSales),
+
+                        CostOfGoods =
+                            group.Sum(x =>
+                                x.Cost),
+
+                        Profit =
+                            group.Sum(x =>
+                                x.GrossProfit),
+
+                        Taxes = 0
+                    };
+                })
+                .OrderByDescending(x =>
+                    x.Date)
+                .ToList();
+
+
+        // =====================================================
+        // PREVIOUS PERIOD
+        // =====================================================
+
+        int numberOfDays =
+            (DateTo.Date -
+             DateFrom.Date).Days + 1;
+
+
+        DateTime previousEnd =
+            DateFrom.Date;
+
+
+        DateTime previousStart =
+            previousEnd.AddDays(
+                -numberOfDays);
+
+
+        List<Transaction> previousTransactions =
+            Data.Transactions
+                .Where(x =>
+                    x.TransactionDate >= previousStart &&
+                    x.TransactionDate < previousEnd)
+                .ToList();
+
+
+        // =====================================================
+        // PREVIOUS STORE
+        // =====================================================
+
+        if (!string.IsNullOrWhiteSpace(SelectedStore) &&
+            Guid.TryParse(
+                SelectedStore,
+                out Guid previousStoreId))
+        {
+            previousTransactions =
+                previousTransactions
+                    .Where(x =>
+                        x.StoreId ==
+                        previousStoreId)
+                    .ToList();
+        }
+
+
+        // =====================================================
+        // PREVIOUS TIME
+        // =====================================================
+
+        previousTransactions =
+            previousTransactions
+                .Where(MatchesTime)
+                .ToList();
+
+
+        // =====================================================
+        // PREVIOUS TOTALS
+        // =====================================================
+
+        GrossSalesPrevious =
+            previousTransactions.Sum(x =>
+                x.GrossSales);
+
+        RefundsPrevious =
+            previousTransactions.Sum(x =>
+                x.Refunds);
+
+        DiscountsPrevious =
+            previousTransactions.Sum(x =>
+                x.Discounts);
+
+        NetSalesPrevious =
+            previousTransactions.Sum(x =>
+                x.NetSales);
+
+        GrossProfitPrevious =
+            previousTransactions.Sum(x =>
+                x.GrossProfit);
+
+
+        // =====================================================
+        // PAGE SAFETY
+        // =====================================================
+
+        if (CurrentPage > TotalPages)
+        {
+            CurrentPage = TotalPages;
+        }
+    }
+    finally
+    {
+        IsLoading = false;
+    }
+}
+
+
+    // =========================================================
+    // TIME FILTER
+    // =========================================================
+
+    private bool MatchesTime(
+        Transaction transaction)
+    {
+        if (SelectedTime == "All day")
+            return true;
+
+
+        TimeSpan time =
+            transaction.TransactionDate
+                .TimeOfDay;
+
+
+        return SelectedTime switch
+        {
+            "Morning" =>
+                time >= TimeSpan.FromHours(5) &&
+                time < TimeSpan.FromHours(12),
+
+            "Afternoon" =>
+                time >= TimeSpan.FromHours(12) &&
+                time < TimeSpan.FromHours(18),
+
+            "Evening" =>
+                time >= TimeSpan.FromHours(18) &&
+                time < TimeSpan.FromHours(24),
+
+            _ => true
+        };
+    }
+
+
+    // =========================================================
+    // SALES MODEL
+    // =========================================================
+
+    private class SalesRow
+    {
+        public DateTime Date { get; set; }
+
+        public decimal Gross { get; set; }
+
+        public decimal Refunds { get; set; }
+
+        public decimal Discounts { get; set; }
+
+        public decimal Net { get; set; }
+
+        public decimal CostOfGoods { get; set; }
+
+        public decimal Profit { get; set; }
+
+        public decimal Taxes { get; set; }
+
+
+        public decimal Margin =>
+            Gross == 0
+                ? 0
+                : Profit / Gross * 100;
+    }
+
+
+    // =========================================================
+    // STORE
+    // =========================================================
+
+    private class StoreOption
+    {
+        public string Id { get; set; } = "";
+
+        public string Name { get; set; } = "";
+    }
+
+
+    // =========================================================
+    // EMPLOYEE
+    // =========================================================
+
+    private class EmployeeOption
+    {
+        public string Id { get; set; } = "";
+
+        public string Name { get; set; } = "";
+    }
+
+}

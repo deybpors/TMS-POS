@@ -1,0 +1,61 @@
+﻿@using System.Reflection
+@using Microsoft.AspNetCore.Components
+
+@foreach (var navPage in AdminPages)
+{
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="@navPage.Route">
+            <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span>
+            @navPage.Name
+        </NavLink>
+    </div>
+}
+
+@code {
+    private List<AdminPage> AdminPages = new();
+
+    protected override void OnInitialized()
+    {
+        AdminPages = Assembly.GetExecutingAssembly()
+            .GetTypes()
+            .Where(type => !type.IsAbstract)
+            .SelectMany(type => type.GetCustomAttributes<RouteAttribute>()
+                .Select(route => new AdminPage
+                {
+                    Route = route.Template,
+                    Name = GetPageName(route.Template)
+                }))
+            .Where(page => page.Route.StartsWith("/admin/"))
+    // Only include routes like:
+    // /admin/products
+    // /admin/categories
+    // /admin/stores
+    // Exclude:
+    // /admin/products/new
+    // /admin/products/edit
+            .Where(page => page.Route.Trim('/').Split('/').Length == 2)
+            .OrderBy(page => page.Name)
+            .ToList();
+    }
+
+    private static string GetPageName(string route)
+    {
+        var name = route
+            .Trim('/')
+            .Split('/')
+            .LastOrDefault();
+
+        if (string.IsNullOrWhiteSpace(name))
+            return "Home";
+
+        return string.Join(" ",
+            name.Split('-', StringSplitOptions.RemoveEmptyEntries)
+                .Select(word => char.ToUpper(word[0]) + word[1..]));
+    }
+
+    private class AdminPage
+    {
+        public string Route { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+}

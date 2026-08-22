@@ -1,0 +1,928 @@
+@page "/admin/payment-types"
+@rendermode InteractiveServer
+
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Misc
+
+@inject IJSRuntime JS
+@inject DatabaseData Data
+
+<PageTitle>Payment Types</PageTitle>
+
+
+<!-- ============================================================ -->
+<!-- LOADING -->
+<!-- ============================================================ -->
+
+<LoadingOverlay IsLoading="@IsLoading"
+                Message="@LoadingMessage" />
+
+
+<div class="admin-page">
+
+    <div class="admin-card">
+
+        <!-- ==================================================== -->
+        <!-- TOP BAR -->
+        <!-- ==================================================== -->
+
+        <div class="d-flex justify-content-between align-items-start p-4">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#paymentTypeModal"
+                    @onclick="PrepareAdd">
+
+                + ADD PAYMENT TYPE
+
+            </button>
+
+
+            <!-- STORE -->
+            <div style="width:160px;">
+
+                <label class="form-label text-muted small mb-1">
+                    Store
+                </label>
+
+                <select class="form-select border-0 border-bottom rounded-0 px-0"
+                        @bind="SelectedStore">
+
+                    <option value="">
+                        All stores
+                    </option>
+
+                    @foreach (var store in Data.Stores)
+                    {
+                        <option value="@store.Id">
+                            @store.Name
+                        </option>
+                    }
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================== -->
+        <!-- TABLE HEADER -->
+        <!-- ==================================================== -->
+
+        <div class="border-bottom px-4 py-3">
+
+            <div class="row align-items-center">
+
+                <div class="col-auto"
+                     style="width:45px;">
+
+                    <input type="checkbox"
+                           class="form-check-input"
+                           style="width:18px;height:18px;" />
+
+                </div>
+
+                <div class="col">
+                    Name
+                </div>
+
+                <div class="col-2">
+                    Type
+                </div>
+
+                <div class="col-2">
+                    Status
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================== -->
+        <!-- PAYMENT TYPES -->
+        <!-- ==================================================== -->
+
+        @foreach (var payment in FilteredPaymentTypes)
+        {
+            <div class="border-bottom px-4 py-3">
+
+                <div class="row align-items-center">
+
+
+                    <!-- CHECKBOX -->
+
+                    <div class="col-auto"
+                         style="width:45px;">
+
+                        <input type="checkbox"
+                               class="form-check-input"
+                               style="width:18px;height:18px;" />
+
+                    </div>
+
+
+                    <!-- NAME -->
+
+                    <div class="col">
+
+                        <button type="button"
+                                class="btn btn-link text-dark text-decoration-none p-0 text-start"
+                                data-bs-toggle="modal"
+                                data-bs-target="#paymentTypeModal"
+                                @onclick="() => Edit(payment)">
+
+                            @payment.Name
+
+                        </button>
+
+                    </div>
+
+
+                    <!-- TYPE -->
+
+                    <div class="col-2">
+
+                        @if (payment.IsCash)
+                        {
+                            <span>
+                                Cash
+                            </span>
+                        }
+                        else
+                        {
+                            <span>
+                                Other
+                            </span>
+                        }
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div class="col-2">
+
+                        @if (payment.IsActive)
+                        {
+                            <span class="badge text-bg-success">
+                                Active
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                Inactive
+                            </span>
+                        }
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
+
+
+        <!-- ==================================================== -->
+        <!-- EMPTY -->
+        <!-- ==================================================== -->
+
+        @if (!FilteredPaymentTypes.Any())
+        {
+            <div class="text-center text-muted py-5">
+
+                No payment types found.
+
+            </div>
+        }
+
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- PAYMENT TYPE MODAL -->
+    <!-- ======================================================== -->
+
+    <div class="modal fade"
+         id="paymentTypeModal"
+         tabindex="-1"
+         aria-labelledby="paymentTypeModalLabel"
+         aria-hidden="true">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+
+                <!-- ================================================= -->
+                <!-- BODY -->
+                <!-- ================================================= -->
+
+                <div class="modal-body p-4">
+
+
+                    <!-- ICON -->
+
+                    <div class="text-center mb-5">
+
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
+                             style="
+                                 width:96px;
+                                 height:96px;
+                                 background-color:#91a7b1;
+                             ">
+
+                            <i class="bi bi-credit-card-2-front text-white"
+                               style="font-size:48px;">
+                            </i>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- NAME -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-4">
+
+                        <label for="paymentName"
+                               class="form-label text-muted">
+
+                            Name
+
+                        </label>
+
+                        <input id="paymentName"
+                               type="text"
+                               class="form-control form-control-lg border-0 border-bottom rounded-0 px-0"
+                               placeholder="e.g. GCash"
+                               @bind="Name"
+                               disabled="@IsLoading" />
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- CASH -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-4">
+
+                        <div class="d-flex justify-content-between align-items-center">
+
+                            <div>
+
+                                <div>
+                                    Cash payment
+                                </div>
+
+                                <div class="text-muted small">
+
+                                    Enable this if this payment type
+                                    accepts physical cash.
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="form-check form-switch">
+
+                                <input id="isCash"
+                                       class="form-check-input"
+                                       type="checkbox"
+                                       role="switch"
+                                       @bind="IsCash"
+                                       disabled="@IsLoading" />
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- ACTIVE -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-4">
+
+                        <div class="d-flex justify-content-between align-items-center">
+
+                            <div>
+
+                                <div>
+                                    Active
+                                </div>
+
+                                <div class="text-muted small">
+
+                                    Inactive payment types will not be
+                                    available when charging a sale.
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="form-check form-switch">
+
+                                <input id="isActive"
+                                       class="form-check-input"
+                                       type="checkbox"
+                                       role="switch"
+                                       @bind="IsActive"
+                                       disabled="@IsLoading" />
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- ERROR -->
+                    <!-- ================================================= -->
+
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger">
+
+                            @ErrorMessage
+
+                        </div>
+                    }
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- STORES -->
+                <!-- ================================================= -->
+
+                <div class="border-top">
+
+                    <button type="button"
+                            class="btn w-100 text-start p-3"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#paymentStores"
+                            aria-expanded="false"
+                            aria-controls="paymentStores">
+
+                        <div class="d-flex align-items-center">
+
+                            <span style="width:65px;">
+                                Stores
+                            </span>
+
+                            <span class="text-muted flex-grow-1">
+
+                                @if (Data.Stores.Count > 0 &&
+                                     SelectedStoreIds.Count == Data.Stores.Count)
+                                {
+                                    @:Available in all stores
+                                }
+                                else
+                                {
+                                    @($"{SelectedStoreIds.Count} store(s) selected")
+                                }
+
+                            </span>
+
+                            <i class="bi bi-chevron-down"></i>
+
+                        </div>
+
+                    </button>
+
+
+                    <div class="collapse"
+                         id="paymentStores">
+
+                        <div class="p-3 border-top">
+
+
+                            <!-- ALL STORES -->
+
+                            <div class="form-check mb-3">
+
+                                <input id="allPaymentStores"
+                                       class="form-check-input"
+                                       type="checkbox"
+                                       checked="@(Data.Stores.Count > 0 &&
+                                                 SelectedStoreIds.Count == Data.Stores.Count)"
+                                       @onclick="ToggleAllStores"
+                                       disabled="@IsLoading" />
+
+                                <label class="form-check-label"
+                                       for="allPaymentStores">
+
+                                    All stores
+
+                                </label>
+
+                            </div>
+
+
+                            <hr />
+
+
+                            <!-- INDIVIDUAL STORES -->
+
+                            @foreach (var store in Data.Stores)
+                            {
+                                <div class="form-check mb-2">
+
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="paymentStore_@store.Id"
+                                           checked="@SelectedStoreIds.Contains(store.Id)"
+                                           @onclick="() => ToggleStore(store.Id)"
+                                           disabled="@IsLoading" />
+
+                                    <label class="form-check-label"
+                                           for="paymentStore_@store.Id">
+
+                                        @store.Name
+
+                                    </label>
+
+                                </div>
+                            }
+
+
+                            @if (Data.Stores.Count == 0)
+                            {
+                                <div class="text-muted small">
+                                    No stores found.
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- FOOTER -->
+                <!-- ================================================= -->
+
+                <div class="modal-footer">
+
+
+                    <!-- DELETE -->
+
+                    @if (Editing is not null)
+                    {
+                        <button type="button"
+                                class="btn btn-outline-danger me-auto"
+                                @onclick="Delete"
+                                disabled="@IsLoading">
+
+                            DELETE
+
+                        </button>
+                    }
+
+
+                    <!-- CANCEL -->
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                            disabled="@IsLoading">
+
+                        CANCEL
+
+                    </button>
+
+
+                    <!-- SAVE -->
+
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="Save"
+                            disabled="@IsLoading">
+
+                        @(Editing is null
+                            ? "SAVE"
+                            : "SAVE CHANGES")
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code
+{
+    // ============================================================
+    // FORM
+    // ============================================================
+
+    private string Name = "";
+
+    private bool IsCash;
+
+    private bool IsActive = true;
+
+
+    // ============================================================
+    // STORE
+    // ============================================================
+
+    private string SelectedStore = "";
+
+    private HashSet<Guid> SelectedStoreIds = new();
+
+
+    // ============================================================
+    // EDITING
+    // ============================================================
+
+    private PaymentType? Editing;
+
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    private bool IsLoading;
+
+    private string LoadingMessage = "Loading...";
+
+    private string ErrorMessage = "";
+
+
+    // ============================================================
+    // FILTERED PAYMENT TYPES
+    // ============================================================
+
+    private IEnumerable<PaymentType> FilteredPaymentTypes
+    {
+        get
+        {
+            IEnumerable<PaymentType> result =
+                Data.PaymentTypes;
+
+            /*
+             * Payment/store relationships are not currently
+             * stored here.
+             *
+             * Once payment_type_stores exists, filter
+             * this collection using SelectedStore.
+             */
+
+            return result
+                .OrderBy(x => x.Name);
+        }
+    }
+
+
+    // ============================================================
+    // INITIALIZE
+    // ============================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Data.PaymentTypes.Count == 0 ||
+            Data.Stores.Count == 0)
+        {
+            await Data.LoadAllAsync();
+        }
+    }
+
+
+    // ============================================================
+    // PREPARE ADD
+    // ============================================================
+
+    private void PrepareAdd()
+    {
+        Editing = null;
+
+        Name = "";
+
+        IsCash = false;
+
+        IsActive = true;
+
+        SelectedStoreIds = Data.Stores
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // EDIT
+    // ============================================================
+
+    private void Edit(PaymentType payment)
+    {
+        Editing = payment;
+
+        Name = payment.Name;
+
+        IsCash = payment.IsCash;
+
+        IsActive = payment.IsActive;
+
+
+        /*
+         * Until payment_type_stores is implemented,
+         * assume this payment type is available
+         * in all stores.
+         */
+
+        SelectedStoreIds = Data.Stores
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // STORE
+    // ============================================================
+
+    private void ToggleStore(Guid storeId)
+    {
+        if (SelectedStoreIds.Contains(storeId))
+        {
+            SelectedStoreIds.Remove(storeId);
+        }
+        else
+        {
+            SelectedStoreIds.Add(storeId);
+        }
+    }
+
+
+    private void ToggleAllStores()
+    {
+        if (SelectedStoreIds.Count ==
+            Data.Stores.Count)
+        {
+            SelectedStoreIds.Clear();
+        }
+        else
+        {
+            SelectedStoreIds = Data.Stores
+                .Select(x => x.Id)
+                .ToHashSet();
+        }
+    }
+
+
+    // ============================================================
+    // SAVE
+    // ============================================================
+
+    private async Task Save()
+    {
+        if (IsLoading)
+            return;
+
+
+        ErrorMessage = "";
+
+
+        // ========================================================
+        // VALIDATION
+        // ========================================================
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage =
+                "Please enter a payment type name.";
+
+            return;
+        }
+
+
+        if (SelectedStoreIds.Count == 0)
+        {
+            ErrorMessage =
+                "Please select at least one store.";
+
+            return;
+        }
+
+
+        Name = Name.Trim();
+
+
+        // ========================================================
+        // DUPLICATE
+        // ========================================================
+
+        bool duplicate =
+            Data.PaymentTypes.Any(x =>
+                x.Id != Editing?.Id &&
+                string.Equals(
+                    x.Name.Trim(),
+                    Name,
+                    StringComparison.OrdinalIgnoreCase));
+
+
+        if (duplicate)
+        {
+            ErrorMessage =
+                "A payment type with this name already exists.";
+
+            return;
+        }
+
+
+        // ========================================================
+        // LOADING
+        // ========================================================
+
+        IsLoading = true;
+
+        LoadingMessage =
+            Editing is null
+                ? "Adding payment type..."
+                : "Saving payment type...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            // ====================================================
+            // CREATE
+            // ====================================================
+
+            if (Editing is null)
+            {
+                var payment = new PaymentType
+                {
+                    Id = Guid.NewGuid(),
+
+                    Name = Name,
+
+                    IsCash = IsCash,
+
+                    IsActive = IsActive
+                };
+
+
+                await Data.SavePaymentTypeAsync(
+                    payment);
+            }
+
+
+            // ====================================================
+            // UPDATE
+            // ====================================================
+
+            else
+            {
+                Editing.Name = Name;
+
+                Editing.IsCash = IsCash;
+
+                Editing.IsActive = IsActive;
+
+
+                await Data.SavePaymentTypeAsync(
+                    Editing);
+            }
+
+
+            // ====================================================
+            // SUCCESS
+            // ====================================================
+
+            Reset();
+
+            IsLoading = false;
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('paymentTypeModal')).hide();"
+            );
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to save payment type: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    private async Task Delete()
+    {
+        if (IsLoading)
+            return;
+
+
+        if (Editing is null)
+            return;
+
+
+        IsLoading = true;
+
+        LoadingMessage =
+            "Deleting payment type...";
+
+        ErrorMessage = "";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            await Data.DeletePaymentTypeAsync(
+                Editing.Id);
+
+
+            // ====================================================
+            // SUCCESS
+            // ====================================================
+
+            Reset();
+
+            IsLoading = false;
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('paymentTypeModal')).hide();"
+            );
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to delete payment type: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // RESET
+    // ============================================================
+
+    private void Reset()
+    {
+        Editing = null;
+
+        Name = "";
+
+        IsCash = false;
+
+        IsActive = true;
+
+        SelectedStore = "";
+
+        SelectedStoreIds.Clear();
+
+        ErrorMessage = "";
+    }
+}

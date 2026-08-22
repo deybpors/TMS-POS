@@ -1,0 +1,948 @@
+@page "/admin/modifiers"
+@rendermode InteractiveServer
+
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Misc
+
+@inject IJSRuntime JS
+@inject DatabaseData Data
+
+<PageTitle>Modifiers</PageTitle>
+
+
+<!-- ============================================================ -->
+<!-- LOADING -->
+<!-- ============================================================ -->
+
+<LoadingOverlay IsLoading="@IsLoading"
+                Message="@LoadingMessage" />
+
+
+<div class="admin-page">
+
+    <div class="admin-card">
+
+
+        <!-- ==================================================== -->
+        <!-- TOP CONTROLS -->
+        <!-- ==================================================== -->
+
+        <div class="d-flex justify-content-between align-items-start p-4">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modifierModal"
+                    @onclick="PrepareAdd">
+
+                + ADD MODIFIER
+
+            </button>
+
+
+            <!-- STORE -->
+            <div style="width:160px;">
+
+                <label class="form-label text-muted small mb-1">
+
+                    Store
+
+                </label>
+
+                <select class="form-select border-0 border-bottom rounded-0 px-0"
+                        @bind="SelectedStore">
+
+                    <option value="">
+                        All stores
+                    </option>
+
+                    @foreach (var store in Data.Stores)
+                    {
+                        <option value="@store.Id">
+
+                            @store.Name
+
+                        </option>
+                    }
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================== -->
+        <!-- HEADER -->
+        <!-- ==================================================== -->
+
+        <div class="border-top border-bottom px-4 py-3">
+
+            <div class="row align-items-center">
+
+                <div class="col-auto">
+
+                    <input type="checkbox"
+                           class="form-check-input"
+                           style="width:18px;height:18px;" />
+
+                </div>
+
+                <div class="col">
+
+                    <span class="text-muted">
+
+                        Modifier
+
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================== -->
+        <!-- MODIFIER LIST -->
+        <!-- ==================================================== -->
+
+        @foreach (var modifier in FilteredModifiers)
+        {
+            <div class="border-bottom px-4 py-3">
+
+                <div class="row align-items-center">
+
+
+                    <!-- CHECKBOX -->
+
+                    <div class="col-auto">
+
+                        <input type="checkbox"
+                               class="form-check-input"
+                               style="width:18px;height:18px;" />
+
+                    </div>
+
+
+                    <!-- ICON -->
+
+                    <div class="col-auto">
+
+                        <div class="rounded-circle d-flex align-items-center justify-content-center"
+                             style="
+                                 width:38px;
+                                 height:38px;
+                                 background-color:#9ACD55;
+                             ">
+
+                            <i class="bi bi-file-earmark-check text-white fs-5">
+                            </i>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- NAME + OPTIONS -->
+
+                    <div class="col">
+
+                        <button type="button"
+                                class="btn btn-link text-decoration-none text-start p-0"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modifierModal"
+                                @onclick="() => Edit(modifier)">
+
+                            <div class="fw-bold text-dark">
+
+                                @modifier.Name
+
+                            </div>
+
+                            <div class="small text-muted">
+
+                                @string.Join(
+                                    ", ",
+                                    GetOptions(modifier.Id)
+                                        .Select(x => x.Name))
+
+                            </div>
+
+                        </button>
+
+                    </div>
+
+
+                    <!-- REORDER -->
+
+                    <div class="col-auto">
+
+                        <button type="button"
+                                class="btn btn-link text-secondary p-0"
+                                style="font-size:22px;">
+
+                            <i class="bi bi-list"></i>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
+
+
+        @if (!FilteredModifiers.Any())
+        {
+            <div class="text-center text-muted py-5">
+
+                No modifiers found.
+
+            </div>
+        }
+
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- MODIFIER MODAL -->
+    <!-- ======================================================== -->
+
+    <div class="modal fade"
+         id="modifierModal"
+         tabindex="-1"
+         aria-labelledby="modifierModalLabel"
+         aria-hidden="true">
+
+        <div class="modal-dialog modal-lg">
+
+            <div class="modal-content">
+
+
+                <!-- ================================================= -->
+                <!-- HEADER -->
+                <!-- ================================================= -->
+
+                <div class="modal-header">
+
+                    <h1 class="modal-title fs-5"
+                        id="modifierModalLabel">
+
+                        @(Editing is null
+                            ? "Add Modifier"
+                            : "Edit Modifier")
+
+                    </h1>
+
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"
+                            disabled="@IsLoading">
+
+                    </button>
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- BODY -->
+                <!-- ================================================= -->
+
+                <div class="modal-body">
+
+
+                    <!-- ERROR -->
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger">
+
+                            @ErrorMessage
+
+                        </div>
+                    }
+
+
+                    <!-- ================================================= -->
+                    <!-- MODIFIER NAME -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-4">
+
+                        <label for="modifierName"
+                               class="form-label">
+
+                            Modifier Name
+
+                        </label>
+
+                        <input id="modifierName"
+                               type="text"
+                               class="form-control"
+                               placeholder="e.g. Customization"
+                               @bind="Name"
+                               disabled="@IsLoading" />
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- OPTIONS -->
+                    <!-- ================================================= -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+
+                            Options
+
+                        </label>
+
+
+                        @for (int i = 0; i < Options.Count; i++)
+                        {
+                            var option = Options[i];
+                        
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                        
+                                <!-- DRAG HANDLE -->
+                                <div class="flex-shrink-0 text-muted"
+                                     style="width:25px;">
+                        
+                                    <i class="bi bi-grip-vertical"></i>
+                        
+                                </div>
+                        
+                        
+                                <!-- OPTION NAME -->
+                                <div class="flex-grow-1">
+                        
+                                    <input type="text"
+                                           class="form-control"
+                                           placeholder="Option name"
+                                           @bind="option.Name"
+                                           disabled="@IsLoading" />
+                        
+                                </div>
+                        
+                        
+                                <!-- PRICE -->
+                                <div style="width:130px;">
+                        
+                                    <div class="input-group">
+                        
+                                        <span class="input-group-text">
+                                            ₱
+                                        </span>
+                        
+                                        <input type="number"
+                                               class="form-control"
+                                               step="0.01"
+                                               min="0"
+                                               @bind="option.Price"
+                                               disabled="@IsLoading" />
+                        
+                                    </div>
+                        
+                                </div>
+                        
+                        
+                                <!-- DELETE -->
+                                <div class="flex-shrink-0">
+                        
+                                    <button type="button"
+                                            class="btn btn-outline-danger"
+                                            @onclick="() => RemoveOption(option)"
+                                            disabled="@IsLoading"
+                                            title="Remove option">
+                        
+                                        <i class="bi bi-trash"></i>
+                        
+                                    </button>
+                        
+                                </div>
+                        
+                            </div>
+                        }
+
+
+                        <!-- ADD OPTION -->
+
+                        <button type="button"
+                                class="btn btn-link text-success text-decoration-none px-0"
+                                @onclick="AddOption"
+                                disabled="@IsLoading">
+
+                            <strong>
+
+                                ＋ ADD OPTION
+
+                            </strong>
+
+                        </button>
+
+                    </div>
+
+
+                    <hr />
+
+
+                    <!-- ================================================= -->
+                    <!-- MULTIPLE -->
+                    <!-- ================================================= -->
+
+                    <div class="form-check">
+
+                        <input id="modifierMultiple"
+                               type="checkbox"
+                               class="form-check-input"
+                               @bind="Multiple"
+                               disabled="@IsLoading" />
+
+                        <label class="form-check-label"
+                               for="modifierMultiple">
+
+                            Allow multiple selections
+
+                        </label>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- FOOTER -->
+                <!-- ================================================= -->
+
+                <div class="modal-footer">
+
+
+                    <!-- DELETE -->
+
+                    @if (Editing is not null)
+                    {
+                        <button type="button"
+                                class="btn btn-outline-danger me-auto"
+                                @onclick="Delete"
+                                disabled="@IsLoading">
+
+                            DELETE
+
+                        </button>
+                    }
+
+
+                    <!-- CANCEL -->
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                            disabled="@IsLoading">
+
+                        Cancel
+
+                    </button>
+
+
+                    <!-- SAVE -->
+
+                    <!--
+                        IMPORTANT:
+
+                        No data-bs-dismiss here.
+
+                        The modal closes only after
+                        validation + Supabase save succeeds.
+                    -->
+
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="Save"
+                            disabled="@IsLoading">
+
+                        @(Editing is null
+                            ? "Add Modifier"
+                            : "Save Changes")
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code
+{
+    // ============================================================
+    // FORM
+    // ============================================================
+
+    private string Name = "";
+
+    private bool Multiple;
+
+    private List<ModifierOption> Options = new();
+
+
+    // ============================================================
+    // EDITING
+    // ============================================================
+
+    private Modifier? Editing;
+
+
+    // ============================================================
+    // STORE
+    // ============================================================
+
+    private string SelectedStore = "";
+
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    private bool IsLoading;
+
+    private string LoadingMessage = "Loading...";
+
+    private string ErrorMessage = "";
+
+
+    // ============================================================
+    // FILTERED MODIFIERS
+    // ============================================================
+
+    private IEnumerable<Modifier> FilteredModifiers
+    {
+        get
+        {
+            IEnumerable<Modifier> result =
+                Data.Modifiers;
+
+            /*
+             * Your current database design does not have
+             * a modifier_stores relationship shown here.
+             *
+             * Therefore the Store dropdown cannot actually
+             * filter modifiers yet.
+             *
+             * When you add modifier_stores, put that filter here.
+             */
+
+            return result
+                .OrderBy(x => x.Name);
+        }
+    }
+
+
+    // ============================================================
+    // INITIALIZE
+    // ============================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Data.Modifiers.Count == 0 ||
+            Data.ModifierOptions.Count == 0 ||
+            Data.Stores.Count == 0)
+        {
+            await Data.LoadAllAsync();
+        }
+    }
+
+
+    // ============================================================
+    // GET OPTIONS
+    // ============================================================
+
+    private IEnumerable<ModifierOption> GetOptions(
+        Guid modifierId)
+    {
+        return Data.ModifierOptions
+            .Where(x =>
+                x.ModifierId == modifierId)
+            .OrderBy(x => x.SortOrder);
+    }
+
+
+    // ============================================================
+    // PREPARE ADD
+    // ============================================================
+
+    private void PrepareAdd()
+    {
+        Editing = null;
+
+        Name = "";
+
+        Multiple = false;
+
+        Options = new List<ModifierOption>
+        {
+            new ModifierOption
+            {
+                Name = "",
+                Price = 0
+            }
+        };
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // EDIT
+    // ============================================================
+
+    private void Edit(Modifier modifier)
+    {
+        Editing = modifier;
+
+        Name = modifier.Name;
+
+        Multiple = modifier.AllowMultiple;
+
+        Options = GetOptions(modifier.Id)
+            .Select(x => new ModifierOption
+            {
+                Id = x.Id,
+                ModifierId = x.ModifierId,
+                Name = x.Name,
+                Price = x.Price,
+                SortOrder = x.SortOrder
+            })
+            .ToList();
+
+        if (Options.Count == 0)
+        {
+            Options.Add(
+                new ModifierOption
+                {
+                    Name = "",
+                    Price = 0
+                });
+        }
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // ADD OPTION
+    // ============================================================
+
+    private void AddOption()
+    {
+        if (IsLoading)
+            return;
+
+        Options.Add(
+            new ModifierOption
+            {
+                Name = "",
+                Price = 0
+            });
+    }
+
+
+    // ============================================================
+    // REMOVE OPTION
+    // ============================================================
+
+    private void RemoveOption(
+        ModifierOption option)
+    {
+        if (IsLoading)
+            return;
+
+        Options.Remove(option);
+    }
+
+
+    // ============================================================
+    // SAVE
+    // ============================================================
+
+    private async Task Save()
+    {
+        if (IsLoading)
+            return;
+
+
+        ErrorMessage = "";
+
+
+        // ========================================================
+        // VALIDATION
+        // ========================================================
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage =
+                "Please enter a modifier name.";
+
+            return;
+        }
+
+
+        Name = Name.Trim();
+
+
+        // ========================================================
+        // CLEAN OPTIONS
+        // ========================================================
+
+        var validOptions = Options
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Name))
+            .Select(x =>
+                new ModifierOption
+                {
+                    Name = x.Name.Trim(),
+
+                    Price = x.Price
+                })
+            .ToList();
+
+
+        if (validOptions.Count == 0)
+        {
+            ErrorMessage =
+                "Please add at least one modifier option.";
+
+            return;
+        }
+
+
+        // ========================================================
+        // OPTION VALIDATION
+        // ========================================================
+
+        if (validOptions.Any(x =>
+            x.Price < 0))
+        {
+            ErrorMessage =
+                "Modifier option prices cannot be negative.";
+
+            return;
+        }
+
+
+        // Duplicate option names
+
+        bool duplicateOption =
+            validOptions
+                .GroupBy(x =>
+                    x.Name,
+                    StringComparer.OrdinalIgnoreCase)
+                .Any(g => g.Count() > 1);
+
+
+        if (duplicateOption)
+        {
+            ErrorMessage =
+                "Modifier options cannot have duplicate names.";
+
+            return;
+        }
+
+
+        // Duplicate modifier name
+
+        bool duplicateModifier =
+            Data.Modifiers.Any(x =>
+                x.Id != Editing?.Id &&
+                string.Equals(
+                    x.Name.Trim(),
+                    Name,
+                    StringComparison.OrdinalIgnoreCase));
+
+
+        if (duplicateModifier)
+        {
+            ErrorMessage =
+                "A modifier with this name already exists.";
+
+            return;
+        }
+
+
+        // ========================================================
+        // LOADING
+        // ========================================================
+
+        IsLoading = true;
+
+        LoadingMessage =
+            Editing is null
+                ? "Adding modifier..."
+                : "Saving modifier...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            // ====================================================
+            // CREATE
+            // ====================================================
+
+            if (Editing is null)
+            {
+                var modifier = new Modifier
+                {
+                    Id = Guid.NewGuid(),
+
+                    Name = Name,
+
+                    AllowMultiple = Multiple
+                };
+
+
+                await Data.SaveModifierAsync(
+                    modifier,
+                    validOptions);
+            }
+
+
+            // ====================================================
+            // UPDATE
+            // ====================================================
+
+            else
+            {
+                Editing.Name = Name;
+
+                Editing.AllowMultiple =
+                    Multiple;
+
+
+                await Data.SaveModifierAsync(
+                    Editing,
+                    validOptions);
+            }
+
+
+            // ====================================================
+            // SUCCESS
+            // ====================================================
+
+            Reset();
+
+            IsLoading = false;
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('modifierModal')).hide();"
+            );
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to save modifier: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    private async Task Delete()
+    {
+        if (IsLoading)
+            return;
+
+
+        if (Editing is null)
+            return;
+
+
+        IsLoading = true;
+
+        LoadingMessage =
+            "Deleting modifier...";
+
+        ErrorMessage = "";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            await Data.DeleteModifierAsync(
+                Editing.Id);
+
+
+            // ====================================================
+            // SUCCESS
+            // ====================================================
+
+            Reset();
+
+            IsLoading = false;
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('modifierModal')).hide();"
+            );
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to delete modifier: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // RESET
+    // ============================================================
+
+    private void Reset()
+    {
+        Editing = null;
+
+        Name = "";
+
+        Multiple = false;
+
+        Options.Clear();
+
+        ErrorMessage = "";
+    }
+}

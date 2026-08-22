@@ -1,0 +1,567 @@
+@page "/admin/categories"
+@rendermode InteractiveServer
+
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Misc
+
+@inject NavigationManager Navigation
+@inject DatabaseData Data
+@inject IJSRuntime JS
+
+<PageTitle>Categories</PageTitle>
+
+<LoadingOverlay IsLoading="@IsLoading"
+                Message="@LoadingMessage" />
+
+<div class="admin-page">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+
+        <div>
+            <h1>Categories</h1>
+            <p>Organize your products.</p>
+        </div>
+
+        <button type="button"
+                class="btn btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#categoryModal"
+                @onclick="PrepareAdd">
+
+            + Add Category
+
+        </button>
+
+    </div>
+
+
+    <!-- CATEGORY TABLE -->
+    <div class="admin-card">
+
+        <div class="table-responsive">
+
+            <table class="table mb-0">
+
+                <thead>
+                    <tr>
+
+                        <th style="width:55px;">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   style="width:18px;height:18px;" />
+                        </th>
+
+                        <th>
+                            Name
+                        </th>
+
+                        <th>
+                            Products
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th style="width:100px;">
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var category in MyCategories)
+                    {
+                        <tr>
+
+                            <!-- CHECKBOX -->
+                            <td>
+
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       style="width:18px;height:18px;" />
+
+                            </td>
+
+
+                            <!-- NAME -->
+                            <td>
+
+                                <button type="button"
+                                        class="btn btn-link text-dark text-decoration-none p-0"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#categoryModal"
+                                        @onclick="() => Edit(category)">
+
+                                    @category.Name
+
+                                </button>
+
+                            </td>
+
+
+                            <!-- PRODUCTS -->
+                            <td>
+
+                                @GetProductCount(category.Id)
+
+                            </td>
+
+
+                            <!-- STATUS -->
+                            <td>
+
+                                @if (category.IsActive)
+                                {
+                                    <span class="badge text-bg-success">
+                                        Active
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">
+                                        Inactive
+                                    </span>
+                                }
+
+                            </td>
+
+
+                            <!-- EDIT -->
+                            <td>
+
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#categoryModal"
+                                        @onclick="() => Edit(category)">
+
+                                    Edit
+
+                                </button>
+
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        @if (MyCategories.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+
+                No categories found.
+
+            </div>
+        }
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================ -->
+<!-- ADD / EDIT CATEGORY MODAL -->
+<!-- ============================================================ -->
+
+<div class="modal fade"
+     id="categoryModal"
+     tabindex="-1"
+     aria-labelledby="categoryModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content">
+
+            <!-- HEADER -->
+            <div class="modal-header">
+
+                <h1 class="modal-title fs-5"
+                    id="categoryModalLabel">
+
+                    @(Editing is null
+                        ? "Add Category"
+                        : "Edit Category")
+
+                </h1>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close">
+                </button>
+
+            </div>
+
+
+            <!-- BODY -->
+            <div class="modal-body">
+
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger">
+
+                        @ErrorMessage
+
+                    </div>
+                }
+
+
+                <div class="mb-3">
+
+                    <label for="categoryName"
+                           class="form-label">
+
+                        Category Name
+
+                    </label>
+
+                    <input id="categoryName"
+                           type="text"
+                           class="form-control"
+                           placeholder="e.g. Matcha"
+                           @bind="Name"
+                           disabled="@IsLoading" />
+
+                </div>
+
+            </div>
+
+
+            <!-- FOOTER -->
+            <div class="modal-footer">
+
+                @if (Editing is not null)
+                {
+                    <button type="button"
+                            class="btn btn-outline-danger me-auto"
+                            @onclick="Delete"
+                            disabled="@IsLoading">
+
+                        DELETE
+
+                    </button>
+                }
+
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                        disabled="@IsLoading">
+
+                    Cancel
+
+                </button>
+
+
+                <!-- IMPORTANT:
+                     NO data-bs-dismiss HERE.
+                     We close the modal ourselves only after
+                     validation + successful Supabase save. -->
+
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="Save"
+                        disabled="@IsLoading">
+
+                    @(Editing is null
+                        ? "Add Category"
+                        : "Save Changes")
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code
+{
+    // ============================================================
+    // FORM
+    // ============================================================
+
+    private string Name = "";
+
+    private Category? Editing;
+
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    private bool IsLoading = false;
+
+    private string LoadingMessage = "Loading...";
+
+    private string ErrorMessage = "";
+
+
+    // ============================================================
+    // DATA
+    // ============================================================
+
+    private List<Category> MyCategories =>
+        Data.Categories;
+
+
+    // ============================================================
+    // INITIALIZE
+    // ============================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Data.Categories.Count == 0)
+        {
+            await Data.LoadAllAsync();
+        }
+    }
+
+
+    // ============================================================
+    // ADD
+    // ============================================================
+
+    private void PrepareAdd()
+    {
+        Editing = null;
+
+        Name = "";
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // EDIT
+    // ============================================================
+
+    private void Edit(Category category)
+    {
+        Editing = category;
+
+        Name = category.Name;
+
+        ErrorMessage = "";
+    }
+
+
+    // ============================================================
+    // SAVE
+    // ============================================================
+
+    private async Task Save()
+    {
+        if (IsLoading)
+            return;
+
+
+        ErrorMessage = "";
+
+
+        // ========================================================
+        // VALIDATION
+        // ========================================================
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage = "Please enter a category name.";
+            return;
+        }
+
+
+        Name = Name.Trim();
+
+
+        if (Name.Length < 2)
+        {
+            ErrorMessage =
+                "Category name must be at least 2 characters.";
+
+            return;
+        }
+
+
+        // Don't allow duplicate category names
+        bool duplicate = MyCategories.Any(x =>
+            x.Id != Editing?.Id &&
+            string.Equals(
+                x.Name.Trim(),
+                Name,
+                StringComparison.OrdinalIgnoreCase));
+
+
+        if (duplicate)
+        {
+            ErrorMessage =
+                "A category with this name already exists.";
+
+            return;
+        }
+
+
+        // ========================================================
+        // LOADING
+        // ========================================================
+
+        IsLoading = true;
+
+        LoadingMessage = Editing is null
+            ? "Adding category..."
+            : "Saving category...";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            // ====================================================
+            // CREATE
+            // ====================================================
+
+            if (Editing is null)
+            {
+                var category = new Category
+                {
+                    Id = Guid.NewGuid(),
+                    Name = Name,
+                    IsActive = true
+                };
+
+
+                await Data.SaveCategoryAsync(category);
+            }
+
+            // ====================================================
+            // UPDATE
+            // ====================================================
+
+            else
+            {
+                Editing.Name = Name;
+
+                await Data.SaveCategoryAsync(Editing);
+            }
+
+
+            // ====================================================
+            // CLOSE MODAL
+            // ====================================================
+
+            Reset();
+
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('categoryModal')).hide();"
+                );
+
+
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to save category: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    private async Task Delete()
+    {
+        if (IsLoading)
+            return;
+
+        if (Editing is null)
+            return;
+
+
+        IsLoading = true;
+
+        LoadingMessage = "Deleting category...";
+
+        ErrorMessage = "";
+
+        StateHasChanged();
+
+        await Task.Yield();
+
+
+        try
+        {
+            await Data.DeleteCategoryAsync(
+                Editing.Id);
+
+
+            Reset();
+
+
+            await JS.InvokeVoidAsync(
+                "eval",
+                "bootstrap.Modal.getOrCreateInstance(document.getElementById('categoryModal')).hide();"
+                );
+
+
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+
+            ErrorMessage =
+                $"Failed to delete category: {ex.Message}";
+
+            StateHasChanged();
+        }
+    }
+
+
+    // ============================================================
+    // PRODUCT COUNT
+    // ============================================================
+
+    private int GetProductCount(Guid categoryId)
+    {
+        return Data.Products.Count(x =>
+            x.CategoryId == categoryId &&
+            x.IsActive);
+    }
+
+
+    // ============================================================
+    // RESET
+    // ============================================================
+
+    private void Reset()
+    {
+        Editing = null;
+
+        Name = "";
+
+        ErrorMessage = "";
+    }
+}

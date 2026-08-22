@@ -1,0 +1,1012 @@
+﻿@namespace HolyPOS.Components.Layout
+
+<div class="position-relative">
+
+    <!-- DATE RANGE BUTTON -->
+    <button type="button"
+            class="btn btn-outline-secondary bg-white"
+            @onclick="ToggleDatePicker">
+
+        @StartDate.ToString("dd MMM yyyy")
+        -
+        @EndDate.ToString("dd MMM yyyy")
+
+    </button>
+
+
+    @if (ShowDatePicker)
+    {
+        <div class="sales-date-picker">
+
+            <!-- ================================= -->
+            <!-- CALENDAR -->
+            <!-- ================================= -->
+
+            <div class="sales-calendar">
+
+                <!-- MONTH HEADER -->
+
+                <div class="sales-calendar-header">
+
+                    <button type="button"
+                            class="sales-calendar-nav"
+                            @onclick="PreviousMonth"
+                            aria-label="Previous month">
+
+                        ‹
+
+                    </button>
+
+
+                    <strong>
+                        @CalendarMonth.ToString("MMMM yyyy")
+                    </strong>
+
+
+                    <button type="button"
+                            class="sales-calendar-nav"
+                            @onclick="NextMonth"
+                            aria-label="Next month">
+
+                        ›
+
+                    </button>
+
+                </div>
+
+
+                <!-- WEEK DAYS -->
+
+                <div class="sales-calendar-grid">
+
+                    @foreach (var day in WeekDays)
+                    {
+                        <div class="sales-weekday">
+                            @day
+                        </div>
+                    }
+
+                </div>
+
+
+                <!-- CALENDAR DAYS -->
+
+                <div class="sales-calendar-grid">
+
+                    @foreach (var day in CalendarDays)
+                    {
+                        <button type="button"
+                                class="@GetDayClass(day)"
+                                disabled="@(!day.IsCurrentMonth)"
+                                @onclick="() => SelectDate(day.Date)">
+
+                            @day.Date.Day
+
+                        </button>
+                    }
+
+                </div>
+
+
+                <!-- ================================= -->
+                <!-- START / END DATE -->
+                <!-- ================================= -->
+
+                <div class="sales-date-fields">
+
+                    <button type="button"
+                            class="sales-date-field @(SelectingStartDate ? "active" : "")"
+                            @onclick="SelectStartDate">
+
+                        <small>
+                            Start date
+                        </small>
+
+                        <span>
+                            @TempDateFrom.ToString("dd/MM/yyyy")
+                        </span>
+
+                    </button>
+
+
+                    <button type="button"
+                            class="sales-date-field @(!SelectingStartDate ? "active" : "")"
+                            @onclick="SelectEndDate">
+
+                        <small>
+                            End date
+                        </small>
+
+                        <span>
+                            @TempDateTo.ToString("dd/MM/yyyy")
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================================= -->
+            <!-- PRESETS -->
+            <!-- ================================= -->
+
+            <div class="sales-date-presets">
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("Today")'>
+
+                    Today
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("Yesterday")'>
+
+                    Yesterday
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("This week")'>
+
+                    This week
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("Last week")'>
+
+                    Last week
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("This month")'>
+
+                    This month
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("Last month")'>
+
+                    Last month
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("Last 7 days")'>
+
+                    Last 7 days
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-preset"
+                        @onclick='() => SelectPreset("Last 30 days")'>
+
+                    Last 30 days
+
+                </button>
+
+            </div>
+
+
+            <!-- ================================= -->
+            <!-- FOOTER -->
+            <!-- ================================= -->
+
+            <div class="sales-date-footer">
+
+                <button type="button"
+                        class="sales-date-cancel"
+                        @onclick="CancelDatePicker">
+
+                    CANCEL
+
+                </button>
+
+
+                <button type="button"
+                        class="sales-date-done"
+                        @onclick="ApplyDatePicker">
+
+                    DONE
+
+                </button>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+
+<style>
+
+    /* =========================================
+       DATE PICKER
+       ========================================= */
+
+    .sales-date-picker {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 1055;
+
+        width: 600px;
+        height: 500px;
+
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+
+        box-sizing: border-box;
+
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+
+        overflow: hidden;
+    }
+
+
+    /* =========================================
+       CALENDAR
+       ========================================= */
+
+    .sales-calendar {
+        flex: 0 0 360px;
+
+        width: 360px;
+        height: 100%;
+
+        box-sizing: border-box;
+
+        padding: 18px 18px 75px 18px;
+    }
+
+
+    .sales-calendar-header {
+        width: 100%;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        margin-bottom: 12px;
+    }
+
+
+    .sales-calendar-header strong {
+        font-size: 18px;
+        font-weight: 500;
+        color: #222;
+    }
+
+
+    .sales-calendar-nav {
+        width: 36px !important;
+        height: 36px !important;
+
+        padding: 0 !important;
+        margin: 0 !important;
+
+        border: 0 !important;
+        border-radius: 50% !important;
+
+        background: transparent !important;
+
+        color: #555 !important;
+
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+
+        font-size: 28px !important;
+        font-family: Arial, sans-serif;
+
+        line-height: 1;
+
+        cursor: pointer;
+
+        box-shadow: none !important;
+    }
+
+
+    .sales-calendar-nav:hover {
+        background: #f0f0f0 !important;
+    }
+
+
+    /* =========================================
+       CALENDAR GRID
+       ========================================= */
+
+    .sales-calendar-grid {
+        width: 322px;
+
+        display: grid;
+
+        grid-template-columns: repeat(7, 46px);
+
+        gap: 0;
+
+        margin: 0;
+        padding: 0;
+    }
+
+
+    .sales-weekday {
+        width: 46px;
+        height: 32px;
+
+        padding: 0 !important;
+        margin: 0 !important;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        font-size: 13px;
+        color: #555;
+    }
+
+
+    /* =========================================
+       CALENDAR DAYS
+       ========================================= */
+
+    .sales-calendar-day {
+        width: 46px !important;
+        height: 38px !important;
+
+        min-width: 46px !important;
+        max-width: 46px !important;
+
+        min-height: 38px !important;
+        max-height: 38px !important;
+
+        padding: 0 !important;
+        margin: 0 !important;
+
+        border: 0 !important;
+        border-radius: 0 !important;
+
+        outline: none !important;
+
+        background: transparent !important;
+
+        color: #222;
+
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 400;
+
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+
+        cursor: pointer;
+
+        box-shadow: none !important;
+    }
+
+
+    .sales-calendar-day:hover {
+        background: #e8f5d8 !important;
+    }
+
+
+    .sales-calendar-day.outside {
+        color: #b8b8b8 !important;
+    }
+
+
+    .sales-calendar-day.outside:hover {
+        background: transparent !important;
+    }
+
+
+    /* =========================================
+       SELECTED RANGE
+       ========================================= */
+
+    .sales-calendar-day.in-range {
+        background: #dcedc8 !important;
+        color: #222 !important;
+        border-radius: 0 !important;
+    }
+
+
+    /* =========================================
+       START / END
+       ========================================= */
+
+    .sales-calendar-day.start,
+    .sales-calendar-day.end {
+        background: #8bc34a !important;
+        color: #fff !important;
+        border-radius: 50% !important;
+
+        position: relative;
+        z-index: 2;
+    }
+
+
+    /* =========================================
+       START / END FIELDS
+       ========================================= */
+
+    .sales-date-fields {
+        width: 322px;
+
+        display: flex;
+
+        gap: 18px;
+
+        margin-top: 18px;
+    }
+
+
+    .sales-date-field {
+        width: 152px !important;
+        height: 55px;
+
+        padding: 4px 0 6px !important;
+        margin: 0 !important;
+
+        border: 0 !important;
+        border-bottom: 1px solid #ccc !important;
+        border-radius: 0 !important;
+
+        outline: none !important;
+
+        background: transparent !important;
+
+        text-align: left;
+
+        cursor: pointer;
+
+        box-shadow: none !important;
+    }
+
+
+    .sales-date-field:hover {
+        border-bottom-color: #8bc34a !important;
+    }
+
+
+    .sales-date-field.active {
+        border-bottom: 2px solid #8bc34a !important;
+    }
+
+
+    .sales-date-field small {
+        display: block;
+
+        margin-bottom: 4px;
+
+        color: #777;
+
+        font-size: 12px;
+    }
+
+
+    .sales-date-field span {
+        font-size: 15px;
+        color: #222;
+    }
+
+
+    /* =========================================
+       PRESETS
+       ========================================= */
+
+    .sales-date-presets {
+        flex: 0 0 240px;
+
+        width: 240px;
+        height: 100%;
+
+        box-sizing: border-box;
+
+        padding: 12px 0 65px;
+
+        border-left: 1px solid #ddd;
+
+        background: #fff;
+
+        overflow: hidden;
+    }
+
+
+    .sales-date-preset {
+        display: block !important;
+
+        width: 100% !important;
+        height: 50px !important;
+
+        padding: 0 20px !important;
+        margin: 0 !important;
+
+        border: 0 !important;
+        border-radius: 0 !important;
+
+        background: transparent !important;
+
+        text-align: left !important;
+
+        color: #333 !important;
+
+        font-size: 15px;
+
+        cursor: pointer;
+    }
+
+
+    .sales-date-preset:hover {
+        background: #f1f8e9 !important;
+    }
+
+
+    /* =========================================
+       FOOTER
+       ========================================= */
+
+    .sales-date-footer {
+        position: absolute;
+
+        left: 0;
+        right: 0;
+        bottom: 0;
+
+        height: 58px;
+
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+
+        gap: 10px;
+
+        padding: 0 16px;
+
+        border-top: 1px solid #ddd;
+
+        background: #fff;
+    }
+
+
+    .sales-date-footer button {
+        height: 40px;
+
+        padding: 0 12px !important;
+        margin: 0 !important;
+
+        border: 0 !important;
+
+        background: transparent !important;
+
+        font-size: 14px;
+        font-weight: 500;
+
+        cursor: pointer;
+    }
+
+
+    .sales-date-cancel {
+        color: #333 !important;
+    }
+
+
+    .sales-date-done {
+        color: #689f38 !important;
+    }
+
+</style>
+
+
+@code {
+
+    // =========================================
+    // PARAMETERS
+    // =========================================
+
+    [Parameter]
+    public DateTime StartDate { get; set; }
+
+    [Parameter]
+    public DateTime EndDate { get; set; }
+
+    [Parameter]
+    public EventCallback<(DateTime Start, DateTime End)> OnDateRangeChanged { get; set; }
+
+
+    // =========================================
+    // INTERNAL STATE
+    // =========================================
+
+    private bool ShowDatePicker;
+
+    private bool SelectingStartDate = true;
+
+    private DateTime TempDateFrom;
+
+    private DateTime TempDateTo;
+
+    private DateTime CalendarMonth;
+
+
+    private readonly string[] WeekDays =
+    {
+        "Su",
+        "Mo",
+        "Tu",
+        "We",
+        "Th",
+        "Fr",
+        "Sa"
+    };
+
+
+    // =========================================
+    // INITIALIZATION
+    // =========================================
+
+    protected override void OnInitialized()
+    {
+        if (StartDate == default)
+        {
+            StartDate = DateTime.Today.AddDays(-29);
+        }
+
+        if (EndDate == default)
+        {
+            EndDate = DateTime.Today;
+        }
+
+        TempDateFrom = StartDate;
+        TempDateTo = EndDate;
+
+        CalendarMonth = new DateTime(
+            TempDateFrom.Year,
+            TempDateFrom.Month,
+            1);
+    }
+
+
+    // =========================================
+    // CALENDAR DAYS
+    // =========================================
+
+    private IEnumerable<CalendarDay> CalendarDays
+    {
+        get
+        {
+            var firstDay = new DateTime(
+                CalendarMonth.Year,
+                CalendarMonth.Month,
+                1);
+
+            int offset = (int)firstDay.DayOfWeek;
+
+            var startDate = firstDay.AddDays(-offset);
+
+            return Enumerable
+                .Range(0, 42)
+                .Select(i =>
+                {
+                    var date = startDate.AddDays(i);
+
+                    return new CalendarDay
+                    {
+                        Date = date,
+                        IsCurrentMonth =
+                            date.Month == CalendarMonth.Month
+                    };
+                });
+        }
+    }
+
+
+    // =========================================
+    // OPEN / CLOSE
+    // =========================================
+
+    private void ToggleDatePicker()
+    {
+        if (!ShowDatePicker)
+        {
+            TempDateFrom = StartDate;
+            TempDateTo = EndDate;
+
+            SelectingStartDate = true;
+
+            CalendarMonth = new DateTime(
+                TempDateFrom.Year,
+                TempDateFrom.Month,
+                1);
+        }
+
+        ShowDatePicker = !ShowDatePicker;
+    }
+
+
+    private async Task ApplyDatePicker()
+    {
+        StartDate = TempDateFrom;
+        EndDate = TempDateTo;
+
+        ShowDatePicker = false;
+
+        await OnDateRangeChanged.InvokeAsync(
+            (StartDate, EndDate));
+    }
+
+
+    private void CancelDatePicker()
+    {
+        TempDateFrom = StartDate;
+        TempDateTo = EndDate;
+
+        ShowDatePicker = false;
+    }
+
+
+    // =========================================
+    // START / END SELECTION
+    // =========================================
+
+    private void SelectStartDate()
+    {
+        SelectingStartDate = true;
+    }
+
+
+    private void SelectEndDate()
+    {
+        SelectingStartDate = false;
+    }
+
+
+    // =========================================
+    // SELECT CALENDAR DATE
+    // =========================================
+
+    private void SelectDate(DateTime date)
+    {
+        if (SelectingStartDate)
+        {
+            TempDateFrom = date;
+
+            if (TempDateFrom > TempDateTo)
+            {
+                TempDateTo = TempDateFrom;
+            }
+
+            SelectingStartDate = false;
+        }
+        else
+        {
+            TempDateTo = date;
+
+            if (TempDateTo < TempDateFrom)
+            {
+                var oldStart = TempDateFrom;
+
+                TempDateFrom = TempDateTo;
+                TempDateTo = oldStart;
+            }
+        }
+    }
+
+
+    // =========================================
+    // MONTH NAVIGATION
+    // =========================================
+
+    private void PreviousMonth()
+    {
+        CalendarMonth =
+            CalendarMonth.AddMonths(-1);
+    }
+
+
+    private void NextMonth()
+    {
+        CalendarMonth =
+            CalendarMonth.AddMonths(1);
+    }
+
+
+    // =========================================
+    // DAY CSS
+    // =========================================
+
+    private string GetDayClass(CalendarDay day)
+    {
+        var classes = "sales-calendar-day";
+
+
+        if (!day.IsCurrentMonth)
+        {
+            classes += " outside";
+        }
+
+
+        if (day.Date.Date == TempDateFrom.Date)
+        {
+            classes += " start";
+        }
+
+
+        if (day.Date.Date == TempDateTo.Date)
+        {
+            classes += " end";
+        }
+
+
+        if (day.Date.Date > TempDateFrom.Date &&
+            day.Date.Date < TempDateTo.Date)
+        {
+            classes += " in-range";
+        }
+
+
+        return classes;
+    }
+
+
+    // =========================================
+    // PRESETS
+    // =========================================
+
+    private void SelectPreset(string preset)
+    {
+        var today = DateTime.Today;
+
+
+        switch (preset)
+        {
+            case "Today":
+
+                TempDateFrom = today;
+                TempDateTo = today;
+
+                break;
+
+
+            case "Yesterday":
+
+                TempDateFrom = today.AddDays(-1);
+                TempDateTo = today.AddDays(-1);
+
+                break;
+
+
+            case "This week":
+
+                int daysSinceSunday =
+                    (int)today.DayOfWeek;
+
+                TempDateFrom =
+                    today.AddDays(-daysSinceSunday);
+
+                TempDateTo =
+                    TempDateFrom.AddDays(6);
+
+                break;
+
+
+            case "Last week":
+
+                int currentWeekDay =
+                    (int)today.DayOfWeek;
+
+                var thisWeekStart =
+                    today.AddDays(-currentWeekDay);
+
+                TempDateFrom =
+                    thisWeekStart.AddDays(-7);
+
+                TempDateTo =
+                    thisWeekStart.AddDays(-1);
+
+                break;
+
+
+            case "This month":
+
+                TempDateFrom = new DateTime(
+                    today.Year,
+                    today.Month,
+                    1);
+
+                TempDateTo =
+                    TempDateFrom
+                        .AddMonths(1)
+                        .AddDays(-1);
+
+                break;
+
+
+            case "Last month":
+
+                TempDateFrom = new DateTime(
+                    today.Year,
+                    today.Month,
+                    1)
+                    .AddMonths(-1);
+
+                TempDateTo = new DateTime(
+                    today.Year,
+                    today.Month,
+                    1)
+                    .AddDays(-1);
+
+                break;
+
+
+            case "Last 7 days":
+
+                TempDateFrom =
+                    today.AddDays(-6);
+
+                TempDateTo =
+                    today;
+
+                break;
+
+
+            case "Last 30 days":
+
+                TempDateFrom =
+                    today.AddDays(-29);
+
+                TempDateTo =
+                    today;
+
+                break;
+        }
+
+
+        CalendarMonth = new DateTime(
+            TempDateFrom.Year,
+            TempDateFrom.Month,
+            1);
+
+        SelectingStartDate = true;
+    }
+
+
+    // =========================================
+    // CALENDAR MODEL
+    // =========================================
+
+    private class CalendarDay
+    {
+        public DateTime Date { get; set; }
+
+        public bool IsCurrentMonth { get; set; }
+    }
+
+}
