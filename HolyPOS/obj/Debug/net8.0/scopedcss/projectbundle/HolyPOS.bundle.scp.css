@@ -1,4 +1,4 @@
-/* _content/HolyPOS/Components/Layout/MainLayout.razor.rz.scp.css */
+/* /Components/Layout/MainLayout.razor.rz.scp.css */
 .page[b-fwk2lz6kiz] {
     position: relative;
     display: flex;
@@ -95,7 +95,7 @@ main[b-fwk2lz6kiz] {
         right: 0.75rem;
         top: 0.5rem;
     }
-/* _content/HolyPOS/Components/Layout/NavMenu.razor.rz.scp.css */
+/* /Components/Layout/NavMenu.razor.rz.scp.css */
 .navbar-toggler[b-rxw69og161] {
     appearance: none;
     cursor: pointer;

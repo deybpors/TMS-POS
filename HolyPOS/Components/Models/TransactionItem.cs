@@ -16,24 +16,6 @@ public class TransactionItem : BaseModel
 
     [Column("product_id")]
     public Guid? ProductId { get; set; }
-
-    [Column("product_name")]
-    public string ProductName { get; set; } = "";
-
-
-    // Category snapshot
-
-    [Column("category_id")]
-    public Guid? CategoryId { get; set; }
-
-    [Column("category_name")]
-    public string? CategoryName { get; set; }
-
-
-    // Pricing snapshot
-
-    [Column("unit_price")]
-    public decimal UnitPrice { get; set; }
     
     // Sale data
 
@@ -42,7 +24,4 @@ public class TransactionItem : BaseModel
 
     [Column("discount_id")]
     public Guid? DiscountId { get; set; }
-    
-    
-    
 }

@@ -22,7 +22,6 @@ public class DatabaseData
 
     public List<Store> Stores { get; private set; } = new();
 
-    public List<ProductVariant> ProductVariants { get; private set; } = new();
 
     public List<Modifier> Modifiers { get; private set; } = new();
 
@@ -39,6 +38,8 @@ public class DatabaseData
     public List<Transaction> Transactions { get; private set; } = new();
     public List<TransactionItem> TransactionItems { get; private set; } = new();
     public List<TransactionPayment> TransactionPayments { get; private set; } = new();
+
+    public List<TransactionItemModifier> TransactionItemModifiers { get; set; } = new();
     // ============================================================
     // LOAD EVERYTHING
     // ============================================================
@@ -55,8 +56,6 @@ public class DatabaseData
 
         ProductModifiers = await GetTableAsync<ProductModifier>();
 
-        ProductVariants = await GetTableAsync<ProductVariant>();
-
         Modifiers = await GetTableAsync<Modifier>();
 
         ModifierOptions = await GetTableAsync<ModifierOption>();
@@ -68,6 +67,8 @@ public class DatabaseData
         Transactions = await GetTableAsync<Transaction>();
         TransactionItems = await GetTableAsync<TransactionItem>();
         TransactionPayments = await GetTableAsync<TransactionPayment>();
+        TransactionItemModifiers =
+    await GetTableAsync<TransactionItemModifier>();
     }
 
     // ============================================================
@@ -265,9 +266,6 @@ public class DatabaseData
             x => x.ProductId == productId);
 
         ProductModifiers.RemoveAll(
-            x => x.ProductId == productId);
-
-        ProductVariants.RemoveAll(
             x => x.ProductId == productId);
     }
 
@@ -836,4 +834,106 @@ public async Task DeletePaymentTypeAsync(
                 ex);
         }
     }
+
+    // ============================================================
+// TRANSACTION ITEM MODIFIER
+// ============================================================
+
+public async Task<TransactionItemModifier>
+    SaveTransactionItemModifierAsync(
+        TransactionItemModifier modifier)
+{
+    try
+    {
+        var response =
+            await _supabase.Client
+                .From<TransactionItemModifier>()
+                .Insert(modifier);
+
+        return response.Models.First();
+    }
+    catch (Exception ex)
+    {
+        throw new Exception(
+            $"Failed to save transaction item modifier: {ex.Message}",
+            ex);
+    }
+}
+
+public decimal GetItemUnitPrice(TransactionItem item)
+{
+    if (!item.ProductId.HasValue)
+        return 0m;
+
+
+    var product =
+        Products.FirstOrDefault(
+            x => x.Id == item.ProductId.Value);
+
+
+    if (product is null)
+        return 0m;
+
+
+    // =========================================================
+    // GET STORE FROM TRANSACTION
+    // =========================================================
+
+    var transaction =
+        Transactions.FirstOrDefault(
+            x => x.Id == item.TransactionId);
+
+
+    decimal unitPrice =
+        product.Price;
+
+
+    // =========================================================
+    // STORE PRICE OVERRIDE
+    // =========================================================
+
+    if (transaction?.StoreId.HasValue == true)
+    {
+        var productStore =
+            ProductStores.FirstOrDefault(
+                x =>
+                    x.ProductId == product.Id &&
+                    x.StoreId == transaction.StoreId.Value &&
+                    x.IsActive);
+
+
+        if (productStore?.PriceOverride.HasValue == true)
+        {
+            unitPrice =
+                productStore.PriceOverride.Value;
+        }
+    }
+
+
+    // =========================================================
+    // ADD MODIFIERS
+    // =========================================================
+
+    var modifiers =
+        TransactionItemModifiers
+            .Where(x =>
+                x.TransactionItemId == item.Id);
+
+
+    foreach (var modifier in modifiers)
+    {
+        var option =
+            ModifierOptions.FirstOrDefault(
+                x => x.Id == modifier.OptionId);
+
+
+        if (option is not null)
+        {
+            unitPrice += option.Price;
+        }
+    }
+
+
+    return unitPrice;
+}
 }

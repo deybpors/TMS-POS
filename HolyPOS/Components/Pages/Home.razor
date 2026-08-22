@@ -1,7 +1,1943 @@
 ﻿@page "/"
+@page "/users/cashier"
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
 
-<h1>Hello, world!</h1>
+@inject DatabaseData Data
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-Welcome to your new fucker.
+<PageTitle>Cashier</PageTitle>
+
+<div class="vh-100 d-flex overflow-hidden bg-light">
+
+    <!-- =========================================================
+         CENTER: PRODUCTS
+    ========================================================== -->
+
+    <div class="flex-grow-1 d-flex flex-column overflow-hidden">
+
+        <!-- HEADER -->
+        <div class="bg-white border-bottom p-3">
+
+            <div class="d-flex align-items-center justify-content-between gap-3">
+
+                <div class="flex-grow-1">
+
+                    <h4 class="mb-0">
+                        New Order
+                    </h4>
+
+                    <small class="text-muted">
+
+                        @if (CurrentStore is not null)
+                        {
+                            @CurrentStore.Name
+                        }
+                        else
+                        {
+                            <span>
+                                Store not selected
+                            </span>
+                        }
+
+                        · Order #@OrderNumber
+
+                    </small>
+
+                </div>
+
+
+                <!-- CATEGORY -->
+                <div style="width: 200px;">
+
+                    <select class="form-select"
+                            @bind="SelectedCategoryId">
+
+                        <option value="">
+                            All Categories
+                        </option>
+
+                        @foreach (var category in ActiveCategories)
+                        {
+                            <option value="@category.Id">
+                                @GetCategoryIcon(category.Name)
+                                @category.Name
+                            </option>
+                        }
+
+                    </select>
+
+                </div>
+
+
+                <!-- SEARCH -->
+                <div class="input-group"
+                     style="max-width:400px;">
+
+                    <span class="input-group-text bg-white">
+                        🔍
+                    </span>
+
+                    <input type="text"
+                           class="form-control"
+                           placeholder="Search products..."
+                           @bind="SearchText"
+                           @bind:event="oninput" />
+
+                    @if (!string.IsNullOrWhiteSpace(SearchText))
+                    {
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                @onclick="ClearSearch">
+
+                            ×
+
+                        </button>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ERROR -->
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="alert alert-danger rounded-0 mb-0">
+
+                @ErrorMessage
+
+            </div>
+        }
+
+
+        <!-- LOADING -->
+        @if (IsLoading)
+        {
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+
+                <div class="text-center">
+
+                    <div class="spinner-border text-success mb-3">
+                    </div>
+
+                    <div class="text-muted">
+                        Loading POS...
+                    </div>
+
+                </div>
+
+            </div>
+        }
+        else
+        {
+            <!-- PRODUCT GRID -->
+            <div class="flex-grow-1 overflow-auto p-3">
+
+                <div class="row g-3">
+
+                    @foreach (var product in FilteredProducts)
+                    {
+                        <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
+
+                            <!-- WHOLE PRODUCT IS CLICKABLE -->
+                            <button type="button"
+                                    class="btn p-0 w-100 h-100 text-start border rounded-3 bg-white shadow-sm overflow-hidden d-flex flex-column"
+                                    @onclick="() => ProductClicked(product)">
+
+                                <!-- IMAGE -->
+                                <div class="bg-light d-flex align-items-center justify-content-center flex-shrink-0">
+
+                                    @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                    {
+                                        <img src="@product.ImageUrl"
+                                             alt="@product.Name"
+                                             class="w-100 h-100"
+                                             style="object-fit:cover;" />
+                                    }
+                                    else
+                                    {
+                                        <span class="fs-1">
+                                            🍵
+                                        </span>
+                                    }
+
+                                </div>
+
+
+                                <!-- PRODUCT INFO -->
+                                <div class="p-3 d-flex flex-column flex-grow-1">
+
+                                    <div class="fw-normal text-center text-dark">
+
+                                        @product.Name
+
+                                    </div>
+
+
+                                    <div class="mt-auto pt-3">
+
+                                        <span class="fw-bold fs-5 text-success">
+
+                                            ₱@GetProductPrice(product).ToString("N2")
+
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                            </button>
+
+                        </div>
+                    }
+
+                </div>
+
+
+                @if (!FilteredProducts.Any())
+                {
+                    <div class="h-100 d-flex align-items-center justify-content-center">
+
+                        <div class="text-center text-muted">
+
+                            <div class="fs-1 mb-3">
+                                🔍
+                            </div>
+
+                            <h5>
+                                No products found
+                            </h5>
+
+                            <div>
+                                Try another search or category.
+                            </div>
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+    </div>
+
+
+    <!-- =========================================================
+         RIGHT: CURRENT ORDER
+    ========================================================== -->
+
+    <div class="bg-white border-start d-flex flex-column"
+         style="width:390px; min-width:390px;">
+
+        <!-- CART HEADER -->
+        <div class="p-3 border-bottom">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+                <div>
+
+                    <h5 class="mb-0">
+                        Current Order
+                    </h5>
+
+                    <small class="text-muted">
+                        @CartItemCount item(s)
+                    </small>
+
+                </div>
+
+
+                @if (Cart.Any())
+                {
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            @onclick="ClearCart">
+
+                        Clear
+
+                    </button>
+                }
+
+            </div>
+
+        </div>
+
+
+        <!-- CART -->
+        <div class="flex-grow-1 overflow-auto">
+
+            @if (!Cart.Any())
+            {
+                <div class="h-100 d-flex align-items-center justify-content-center text-center p-4">
+
+                    <div>
+
+                        <div class="fs-1 mb-3">
+                            🛒
+                        </div>
+
+                        <h6>
+                            No items yet
+                        </h6>
+
+                        <small class="text-muted">
+                            Select a product to add it to the order.
+                        </small>
+
+                    </div>
+
+                </div>
+            }
+            else
+            {
+                @foreach (var item in Cart)
+                {
+                    <div class="p-3 border-bottom">
+
+                        <!-- PRODUCT -->
+                        <div class="d-flex justify-content-between gap-2">
+
+                            <div class="flex-grow-1">
+
+                                <div class="fw-semibold">
+                                    @item.Product.Name
+                                </div>
+
+
+                                <!-- MODIFIERS -->
+                                @if (item.SelectedModifiers.Any())
+                                {
+                                    <div class="mt-1">
+
+                                        @foreach (var modifier in item.SelectedModifiers)
+                                        {
+                                            <small class="text-muted d-block">
+
+                                                @modifier.ModifierName:
+                                                @modifier.OptionName
+
+                                                @if (modifier.Price > 0)
+                                                {
+                                                    <span>
+                                                        (+₱@modifier.Price.ToString("N2"))
+                                                    </span>
+                                                }
+
+                                            </small>
+                                        }
+
+                                    </div>
+                                }
+
+                            </div>
+
+
+                            <div class="text-muted">
+
+                                ₱@item.UnitPrice.ToString("N2")
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- QUANTITY -->
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+
+                            <div class="btn-group">
+
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        @onclick="() => DecreaseQuantity(item)">
+
+                                    −
+
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        disabled>
+
+                                    @item.Quantity
+
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        @onclick="() => IncreaseQuantity(item)">
+
+                                    +
+
+                                </button>
+
+                            </div>
+
+
+                            <div class="fw-bold">
+
+                                ₱@((item.UnitPrice * item.Quantity).ToString("N2"))
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                }
+            }
+
+        </div>
+
+
+        <!-- =====================================================
+             TOTAL
+        ====================================================== -->
+
+        <div class="border-top p-3">
+
+            <div class="d-flex justify-content-between mb-2">
+
+                <span class="text-muted">
+                    Subtotal
+                </span>
+
+                <span>
+                    ₱@Subtotal.ToString("N2")
+                </span>
+
+            </div>
+
+
+            <div class="d-flex justify-content-between mb-2">
+
+                <span class="text-muted">
+                    Discount
+                </span>
+
+                <span>
+                    ₱@Discount.ToString("N2")
+                </span>
+
+            </div>
+
+
+            <div class="d-flex justify-content-between mb-3">
+
+                <span class="text-muted">
+                    Tax
+                </span>
+
+                <span>
+                    ₱@Tax.ToString("N2")
+                </span>
+
+            </div>
+
+
+            <div class="d-flex justify-content-between border-top pt-3 mb-3">
+
+                <span class="fs-5 fw-bold">
+                    Total
+                </span>
+
+                <span class="fs-5 fw-bold text-success">
+
+                    ₱@Total.ToString("N2")
+
+                </span>
+
+            </div>
+
+
+            <button type="button"
+                    class="btn btn-success btn-lg w-100 d-flex justify-content-between align-items-center"
+                    disabled="@(!Cart.Any())"
+                    @onclick="OpenPayment">
+
+                <span>
+                    Charge
+                </span>
+
+                <strong>
+                    ₱@Total.ToString("N2")
+                </strong>
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =============================================================
+     MODIFIER MODAL
+============================================================= -->
+
+@if (ShowModifierModal && SelectedModifierProduct is not null)
+{
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         style="background-color:rgba(0,0,0,.5);">
+
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <h5 class="modal-title mb-0">
+                            @SelectedModifierProduct.Name
+                        </h5>
+
+                        <small class="text-muted">
+                            Customize your order
+                        </small>
+
+                    </div>
+
+
+                    <button type="button"
+                            class="btn-close"
+                            @onclick="CloseModifierModal">
+                    </button>
+
+                </div>
+
+
+                <div class="modal-body">
+
+                    @foreach (var modifier in SelectedProductModifiers)
+                    {
+                        var options = GetModifierOptions(modifier.Id);
+
+                        if (options.Any())
+                        {
+                            <div class="mb-4">
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+
+                                    <div class="fw-semibold fs-5">
+                                        @modifier.Name
+                                    </div>
+
+                                    @if (modifier.AllowMultiple)
+                                    {
+                                        <small class="text-muted">
+                                            Multiple
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <small class="text-muted">
+                                            Choose one
+                                        </small>
+                                    }
+
+                                </div>
+
+
+                                @foreach (var option in options)
+                                {
+                                    @if (modifier.AllowMultiple)
+                                    {
+                                        <button type="button"
+                                                class="btn w-100 text-start border rounded-3 mb-2
+                                                @(IsOptionSelected(modifier.Id, option.Id)
+                                                    ? "border-success bg-success-subtle"
+                                                    : "bg-white")"
+                                                @onclick="() => ToggleModifierOption(modifier.Id, option.Id)">
+
+                                            <div class="d-flex align-items-center justify-content-between">
+
+                                                <div class="d-flex align-items-center gap-3">
+
+                                                    <input type="checkbox"
+                                                           class="form-check-input m-0"
+                                                           checked="@IsOptionSelected(modifier.Id, option.Id)"
+                                                           @onclick:stopPropagation />
+
+                                                    <span>
+                                                        @option.Name
+                                                    </span>
+
+                                                </div>
+
+
+                                                @if (option.Price > 0)
+                                                {
+                                                    <span class="text-success fw-semibold">
+
+                                                        +₱@option.Price.ToString("N2")
+
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">
+                                                        Included
+                                                    </span>
+                                                }
+
+                                            </div>
+
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button"
+                                                class="btn w-100 text-start border rounded-3 mb-2
+                                                @(IsOptionSelected(modifier.Id, option.Id)
+                                                    ? "border-success bg-success-subtle"
+                                                    : "bg-white")"
+                                                @onclick="() => SelectModifierOption(modifier.Id, option.Id)">
+
+                                            <div class="d-flex align-items-center justify-content-between">
+
+                                                <div class="d-flex align-items-center gap-3">
+
+                                                    <input type="radio"
+                                                           class="form-check-input m-0"
+                                                           name="modifier_@modifier.Id"
+                                                           checked="@IsOptionSelected(modifier.Id, option.Id)"
+                                                           @onclick:stopPropagation />
+
+                                                    <span>
+                                                        @option.Name
+                                                    </span>
+
+                                                </div>
+
+
+                                                @if (option.Price > 0)
+                                                {
+                                                    <span class="text-success fw-semibold">
+
+                                                        +₱@option.Price.ToString("N2")
+
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">
+                                                        Included
+                                                    </span>
+                                                }
+
+                                            </div>
+
+                                        </button>
+                                    }
+                                }
+
+                            </div>
+                        }
+                    }
+
+
+                    <div class="border-top pt-3">
+
+                        <div class="d-flex justify-content-between">
+
+                            <span class="text-muted">
+                                Product
+                            </span>
+
+                            <span>
+                                ₱@GetProductPrice(SelectedModifierProduct).ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between">
+
+                            <span class="text-muted">
+                                Modifiers
+                            </span>
+
+                            <span>
+                                ₱@SelectedModifierTotal.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between fs-5 fw-bold mt-2">
+
+                            <span>
+                                Total
+                            </span>
+
+                            <span class="text-success">
+                                ₱@ModifierGrandTotal.ToString("N2")
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            @onclick="CloseModifierModal">
+
+                        Cancel
+
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-success"
+                            @onclick="ConfirmModifierProduct">
+
+                        Add to order
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+<!-- =============================================================
+     PAYMENT MODAL
+============================================================= -->
+
+@if (ShowPaymentModal)
+{
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         style="background-color:rgba(0,0,0,.5);">
+
+        <div class="modal-dialog modal-dialog-centered">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <h5 class="modal-title mb-0">
+                            Payment
+                        </h5>
+
+                        <small class="text-muted">
+                            Complete this order
+                        </small>
+
+                    </div>
+
+
+                    <button type="button"
+                            class="btn-close"
+                            @onclick="ClosePayment">
+                    </button>
+
+                </div>
+
+
+                <div class="modal-body">
+
+                    <div class="text-center mb-4">
+
+                        <small class="text-muted d-block">
+                            Amount due
+                        </small>
+
+                        <div class="display-5 fw-bold text-success">
+
+                            ₱@Total.ToString("N2")
+
+                        </div>
+
+                    </div>
+
+
+                    @if (!ActivePaymentTypes.Any())
+                    {
+                        <div class="alert alert-warning">
+
+                            No active payment types were found.
+
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-2">
+
+                            @foreach (var paymentType in ActivePaymentTypes)
+                            {
+                                <div class="col-6">
+
+                                    <button type="button"
+                                            class="btn w-100 py-3
+                                            @(SelectedPaymentTypeId == paymentType.Id
+                                                ? "btn-success"
+                                                : "btn-outline-secondary")"
+                                            @onclick="() => SelectPaymentType(paymentType)">
+
+                                        <div class="fs-3">
+                                            @GetPaymentIcon(paymentType.Name)
+                                        </div>
+
+                                        <div class="fw-semibold">
+                                            @paymentType.Name
+                                        </div>
+
+                                    </button>
+
+                                </div>
+                            }
+
+                        </div>
+
+
+                        @if (SelectedPaymentType?.IsCash == true)
+                        {
+                            <div class="mt-4">
+
+                                <label class="form-label">
+                                    Cash received
+                                </label>
+
+                                <div class="input-group input-group-lg">
+
+                                    <span class="input-group-text">
+                                        ₱
+                                    </span>
+
+                                    <input type="number"
+                                           class="form-control"
+                                           step="0.01"
+                                           min="0"
+                                           placeholder="0.00"
+                                           @bind="CashReceived"
+                                           @bind:event="oninput" />
+
+                                </div>
+
+
+                                <div class="d-flex gap-2 mt-2">
+
+                                    @foreach (var amount in QuickCashAmounts)
+                                    {
+                                        <button type="button"
+                                                class="btn btn-outline-secondary flex-grow-1"
+                                                @onclick="() => CashReceived = amount">
+
+                                            ₱@amount.ToString("N0")
+
+                                        </button>
+                                    }
+
+                                </div>
+
+
+                                <div class="d-flex justify-content-between mt-3">
+
+                                    <span>
+                                        Change
+                                    </span>
+
+                                    <strong class="text-success">
+                                        ₱@Change.ToString("N2")
+                                    </strong>
+
+                                </div>
+
+                            </div>
+                        }
+
+
+                        @if (SelectedPaymentType is not null &&
+                             !SelectedPaymentType.IsCash)
+                        {
+                            <div class="alert alert-light border mt-4 mb-0">
+
+                                <div class="fw-semibold">
+                                    @SelectedPaymentType.Name
+                                </div>
+
+                                <small class="text-muted">
+                                    Confirm that the payment has been received before completing the sale.
+                                </small>
+
+                            </div>
+                        }
+
+                    }
+
+                </div>
+
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            @onclick="ClosePayment">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button type="button"
+                            class="btn btn-success"
+                            disabled="@(!CanCompletePayment)"
+                            @onclick="CompletePayment">
+
+                        Complete Payment
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+
+    // =========================================================
+    // STATE
+    // =========================================================
+
+    private bool IsLoading;
+
+    private string ErrorMessage = "";
+
+    private string SearchText = "";
+
+    private Guid? SelectedCategoryId;
+
+    private Guid? CurrentStoreId;
+
+    private Store? CurrentStore;
+
+    private int OrderNumber;
+
+
+    // =========================================================
+    // MODIFIER STATE
+    // =========================================================
+
+    private bool ShowModifierModal;
+
+    private Product? SelectedModifierProduct;
+
+    private List<Modifier> SelectedProductModifiers = new();
+
+    private Dictionary<Guid, HashSet<Guid>> SelectedModifierOptions = new();
+
+
+    // =========================================================
+    // PAYMENT STATE
+    // =========================================================
+
+    private bool ShowPaymentModal;
+
+    private Guid? SelectedPaymentTypeId;
+
+    private PaymentType? SelectedPaymentType;
+
+    private decimal CashReceived;
+
+
+    private readonly decimal[] QuickCashAmounts =
+    {
+        100,
+        200,
+        500,
+        1000
+    };
+
+
+    // =========================================================
+    // CART
+    // =========================================================
+
+    private List<CartItem> Cart = new();
+
+
+    // =========================================================
+    // INITIALIZATION
+    // =========================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        System.Random random = new();
+        OrderNumber = random.Next(0, int.MaxValue);
+        IsLoading = true;
+        ErrorMessage = "";
+
+        try
+        {
+            await Data.LoadAllAsync();
+
+            await ResolveCurrentStoreAsync();
+
+            if (CurrentStore is null)
+            {
+                ErrorMessage = "No active store was found.";
+                return;
+            }
+
+            SelectDefaultPaymentType();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                $"Failed to load the POS: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    // =========================================================
+    // CURRENT STORE
+    // =========================================================
+
+    private async Task ResolveCurrentStoreAsync()
+    {
+        // =========================================================
+        // TEMPORARY:
+        // Cashier currently uses the FIRST ACTIVE STORE.
+        //
+        // TODO:
+        // Change this later to get the store assigned to the
+        // currently logged-in cashier.
+        // =========================================================
+
+        var activeStore =
+            Data.Stores
+                .FirstOrDefault(x => x.Active);
+
+        if (activeStore is not null)
+        {
+            CurrentStoreId = activeStore.Id;
+            CurrentStore = activeStore;
+        }
+
+        await Task.CompletedTask;
+    }
+
+
+    // =========================================================
+    // CATEGORIES
+    // =========================================================
+
+    private IEnumerable<Category> ActiveCategories =>
+        Data.Categories
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name);
+
+
+    private string GetCategoryIcon(string categoryName)
+    {
+        return categoryName.ToLowerInvariant() switch
+        {
+            var x when x.Contains("matcha") => "🍵",
+            var x when x.Contains("coffee") => "☕",
+            var x when x.Contains("drink") => "🥤",
+            var x when x.Contains("non") => "🥤",
+            var x when x.Contains("pastr") => "🥐",
+            var x when x.Contains("food") => "🍱",
+            _ => "•"
+        };
+    }
+
+
+    // =========================================================
+    // PRODUCTS
+    // =========================================================
+
+    private IEnumerable<Product> StoreProducts
+    {
+        get
+        {
+            if (CurrentStoreId is null)
+                return Enumerable.Empty<Product>();
+
+
+            var storeProductIds =
+                Data.ProductStores
+                    .Where(x =>
+                        x.StoreId == CurrentStoreId.Value &&
+                        x.IsActive)
+                    .Select(x => x.ProductId)
+                    .ToHashSet();
+
+
+            return Data.Products
+                .Where(x =>
+                    x.IsActive &&
+                    storeProductIds.Contains(x.Id));
+        }
+    }
+
+
+    private IEnumerable<Product> FilteredProducts
+    {
+        get
+        {
+            IEnumerable<Product> result =
+                StoreProducts;
+
+
+            // CATEGORY
+            if (SelectedCategoryId.HasValue)
+            {
+                result =
+                    result.Where(x =>
+                        x.CategoryId ==
+                        SelectedCategoryId.Value);
+            }
+
+
+            // SEARCH
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                string search =
+                    SearchText.Trim();
+
+                result =
+                    result.Where(x =>
+                        x.Name.Contains(
+                            search,
+                            StringComparison.OrdinalIgnoreCase));
+            }
+
+
+            // =====================================================
+            // MOST SOLD → LEAST SOLD
+            // =====================================================
+
+            var salesByProduct =
+                Data.TransactionItems
+                    .Where(x => x.ProductId.HasValue)
+                    .GroupBy(x => x.ProductId!.Value)
+                    .ToDictionary(
+                        x => x.Key,
+                        x => x.Sum(item => item.Quantity)
+                    );
+
+
+            return result
+                .OrderByDescending(x =>
+                    salesByProduct.TryGetValue(
+                        x.Id,
+                        out var quantity)
+                        ? quantity
+                        : 0)
+                .ThenBy(x => x.Name);
+        }
+    }
+
+
+    private decimal GetProductPrice(Product product)
+    {
+        if (CurrentStoreId is null)
+            return product.Price;
+
+
+        var storeProduct =
+            Data.ProductStores.FirstOrDefault(
+                x =>
+                    x.ProductId == product.Id &&
+                    x.StoreId == CurrentStoreId.Value &&
+                    x.IsActive);
+
+
+        return storeProduct?.PriceOverride
+            ?? product.Price;
+    }
+
+
+    // =========================================================
+    // SEARCH
+    // =========================================================
+
+    private void ClearSearch()
+    {
+        SearchText = "";
+    }
+
+
+    // =========================================================
+    // MODIFIERS
+    // =========================================================
+
+    private bool HasModifiers(Product product)
+    {
+        return Data.ProductModifiers.Any(
+            x => x.ProductId == product.Id);
+    }
+
+
+    private List<Modifier> GetProductModifiers(Product product)
+    {
+        var modifierIds =
+            Data.ProductModifiers
+                .Where(x => x.ProductId == product.Id)
+                .OrderBy(x => x.SortOrder)
+                .Select(x => x.ModifierId)
+                .ToList();
+
+
+        return Data.Modifiers
+            .Where(x =>
+                modifierIds.Contains(x.Id))
+            .OrderBy(x => modifierIds.IndexOf(x.Id))
+            .ToList();
+    }
+
+
+    private IEnumerable<ModifierOption> GetModifierOptions(
+        Guid modifierId)
+    {
+        return Data.ModifierOptions
+            .Where(x =>
+                x.ModifierId == modifierId)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name);
+    }
+
+
+    // =========================================================
+    // PRODUCT CLICK
+    // =========================================================
+
+    private void ProductClicked(Product product)
+    {
+        var modifiers =
+            GetProductModifiers(product);
+
+
+        if (!modifiers.Any())
+        {
+            AddProductToCart(
+                product,
+                new List<SelectedModifier>());
+
+            return;
+        }
+
+
+        SelectedModifierProduct = product;
+
+        SelectedProductModifiers = modifiers;
+
+        SelectedModifierOptions =
+            new Dictionary<Guid, HashSet<Guid>>();
+
+
+        foreach (var modifier in modifiers)
+        {
+            SelectedModifierOptions[modifier.Id] =
+                new HashSet<Guid>();
+        }
+
+
+        ShowModifierModal = true;
+    }
+
+
+    // =========================================================
+    // MODIFIER SELECTION
+    // =========================================================
+
+    private bool IsOptionSelected(
+        Guid modifierId,
+        Guid optionId)
+    {
+        return
+            SelectedModifierOptions.TryGetValue(
+                modifierId,
+                out var selected)
+            &&
+            selected.Contains(optionId);
+    }
+
+
+    private void SelectModifierOption(
+        Guid modifierId,
+        Guid optionId)
+    {
+        if (!SelectedModifierOptions
+            .TryGetValue(
+                modifierId,
+                out var selected))
+        {
+            selected =
+                new HashSet<Guid>();
+
+            SelectedModifierOptions[modifierId] =
+                selected;
+        }
+
+
+        selected.Clear();
+
+        selected.Add(optionId);
+    }
+
+
+    private void ToggleModifierOption(
+        Guid modifierId,
+        Guid optionId)
+    {
+        if (!SelectedModifierOptions
+            .TryGetValue(
+                modifierId,
+                out var selected))
+        {
+            selected =
+                new HashSet<Guid>();
+
+            SelectedModifierOptions[modifierId] =
+                selected;
+        }
+
+
+        if (selected.Contains(optionId))
+        {
+            selected.Remove(optionId);
+        }
+        else
+        {
+            selected.Add(optionId);
+        }
+    }
+
+
+    // =========================================================
+    // MODIFIER TOTAL
+    // =========================================================
+
+    private IEnumerable<SelectedModifier> SelectedModifiers
+    {
+        get
+        {
+            foreach (var modifier in SelectedProductModifiers)
+            {
+                if (!SelectedModifierOptions
+                    .TryGetValue(
+                        modifier.Id,
+                        out var optionIds))
+                {
+                    continue;
+                }
+
+
+                foreach (var optionId in optionIds)
+                {
+                    var option =
+                        Data.ModifierOptions.FirstOrDefault(
+                            x =>
+                                x.Id == optionId &&
+                                x.ModifierId == modifier.Id);
+
+
+                    if (option is null)
+                        continue;
+
+
+                    yield return new SelectedModifier
+                    {
+                        ModifierId = modifier.Id,
+                        ModifierName = modifier.Name,
+                        OptionId = option.Id,
+                        OptionName = option.Name,
+                        Price = option.Price
+                    };
+                }
+            }
+        }
+    }
+
+
+    private decimal SelectedModifierTotal =>
+        SelectedModifiers.Sum(x => x.Price);
+
+
+    private decimal ModifierGrandTotal =>
+        SelectedModifierProduct is null
+            ? 0
+            : GetProductPrice(SelectedModifierProduct)
+              + SelectedModifierTotal;
+
+
+    // =========================================================
+    // CONFIRM MODIFIER
+    // =========================================================
+
+    private void ConfirmModifierProduct()
+    {
+        if (SelectedModifierProduct is null)
+            return;
+
+
+        var modifiers =
+            SelectedModifiers.ToList();
+
+
+        AddProductToCart(
+            SelectedModifierProduct,
+            modifiers);
+
+
+        CloseModifierModal();
+    }
+
+
+    private void CloseModifierModal()
+    {
+        ShowModifierModal = false;
+
+        SelectedModifierProduct = null;
+
+        SelectedProductModifiers.Clear();
+
+        SelectedModifierOptions.Clear();
+    }
+
+
+    // =========================================================
+    // CART
+    // =========================================================
+
+    private void AddProductToCart(
+        Product product,
+        List<SelectedModifier> modifiers)
+    {
+        decimal unitPrice =
+            GetProductPrice(product)
+            +
+            modifiers.Sum(x => x.Price);
+
+
+        var existing =
+            Cart.FirstOrDefault(
+                x =>
+                    x.Product.Id == product.Id &&
+                    AreModifiersEqual(
+                        x.SelectedModifiers,
+                        modifiers));
+
+
+        if (existing is not null)
+        {
+            existing.Quantity++;
+
+            return;
+        }
+
+
+        Cart.Add(
+            new CartItem
+            {
+                Product = product,
+
+                Quantity = 1,
+
+                UnitPrice = unitPrice,
+
+                SelectedModifiers =
+                    modifiers
+            });
+    }
+
+
+    private bool AreModifiersEqual(
+        List<SelectedModifier> first,
+        List<SelectedModifier> second)
+    {
+        if (first.Count != second.Count)
+            return false;
+
+
+        var firstIds =
+            first
+                .Select(x => x.OptionId)
+                .OrderBy(x => x)
+                .ToList();
+
+
+        var secondIds =
+            second
+                .Select(x => x.OptionId)
+                .OrderBy(x => x)
+                .ToList();
+
+
+        return firstIds.SequenceEqual(secondIds);
+    }
+
+
+    private int CartItemCount =>
+        Cart.Sum(x => x.Quantity);
+
+
+    private decimal Subtotal =>
+        Cart.Sum(x =>
+            x.UnitPrice *
+            x.Quantity);
+
+
+    private decimal Discount =>
+        0;
+
+
+    private decimal Tax =>
+        0;
+
+
+    private decimal Total =>
+        Subtotal -
+        Discount +
+        Tax;
+
+
+    private void IncreaseQuantity(CartItem item)
+    {
+        item.Quantity++;
+    }
+
+
+    private void DecreaseQuantity(CartItem item)
+    {
+        item.Quantity--;
+
+        if (item.Quantity <= 0)
+        {
+            Cart.Remove(item);
+        }
+    }
+
+
+    private void ClearCart()
+    {
+        Cart.Clear();
+    }
+
+
+    // =========================================================
+    // PAYMENT TYPES
+    // =========================================================
+
+    private IEnumerable<PaymentType> ActivePaymentTypes =>
+        Data.PaymentTypes
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name);
+
+
+    private void SelectDefaultPaymentType()
+    {
+        var first =
+            ActivePaymentTypes.FirstOrDefault();
+
+
+        if (first is not null)
+        {
+            SelectPaymentType(first);
+        }
+    }
+
+
+    private void SelectPaymentType(
+        PaymentType paymentType)
+    {
+        SelectedPaymentTypeId =
+            paymentType.Id;
+
+        SelectedPaymentType =
+            paymentType;
+
+
+        if (paymentType.Name.ToLower().Contains("cash"))
+        {
+            CashReceived = Total;
+        }
+        else
+        {
+            CashReceived = 0;
+        }
+    }
+
+
+    private string GetPaymentIcon(string name)
+    {
+        string value =
+            name.ToLowerInvariant();
+
+
+        if (value.Contains("cash"))
+            return "💵";
+
+
+        if (value.Contains("gcash"))
+            return "📱";
+
+
+        if (value.Contains("maya"))
+            return "📱";
+
+
+        if (value.Contains("card"))
+            return "💳";
+
+
+        if (value.Contains("credit"))
+            return "💳";
+
+
+        if (value.Contains("debit"))
+            return "💳";
+
+
+        if (value.Contains("bank"))
+            return "🏦";
+
+
+        return "💰";
+    }
+
+
+    // =========================================================
+    // PAYMENT
+    // =========================================================
+
+    private void OpenPayment()
+    {
+        if (!Cart.Any())
+            return;
+
+
+        SelectDefaultPaymentType();
+
+        ShowPaymentModal = true;
+    }
+
+
+    private void ClosePayment()
+    {
+        ShowPaymentModal = false;
+    }
+
+
+    private decimal Change =>
+        Math.Max(
+            0,
+            CashReceived - Total);
+
+
+    private bool CanCompletePayment
+    {
+        get
+        {
+            if (SelectedPaymentType is null)
+                return false;
+
+
+            if (SelectedPaymentType.IsCash)
+            {
+                return CashReceived >= Total;
+            }
+
+
+            return true;
+        }
+    }
+
+
+    // =========================================================
+    // COMPLETE PAYMENT
+    // =========================================================
+
+    private async Task CompletePayment()
+{
+    if (!CanCompletePayment)
+        return;
+
+    if (CurrentStoreId is null)
+    {
+        ErrorMessage =
+            "No store is assigned to this cashier.";
+
+        return;
+    }
+
+    if (SelectedPaymentType is null)
+        return;
+
+    if (!Cart.Any())
+        return;
+
+    ErrorMessage = "";
+
+    try
+    {
+        // =========================================================
+        // CREATE TRANSACTION
+        // =========================================================
+
+        var transaction =
+            new Transaction
+            {
+                Id = Guid.NewGuid(),
+
+                ReceiptId =
+                    $"{OrderNumber}",
+
+                StoreId =
+                    CurrentStoreId.Value,
+
+                TransactionDate =
+                    DateTime.UtcNow,
+
+                GrossSales =
+                    Subtotal,
+
+                Refunds =
+                    0,
+
+                Discounts =
+                    Discount,
+
+                NetSales =
+                    Total,
+
+                Cost =
+                    0,
+
+                GrossProfit =
+                    Total,
+
+                IsRefunded =
+                    false,
+
+                OriginalTransactionId =
+                    null
+            };
+
+
+        // =========================================================
+        // SAVE TRANSACTION
+        // =========================================================
+
+        var savedTransaction =
+            await Data.SaveTransactionAsync(
+                transaction);
+
+
+        // =========================================================
+        // SAVE TRANSACTION ITEMS
+        // =========================================================
+
+        foreach (var cartItem in Cart)
+        {
+            var product =
+                cartItem.Product;
+
+
+            var transactionItem =
+                new TransactionItem
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TransactionId =
+                        savedTransaction.Id,
+
+                    ProductId =
+                        product.Id,
+
+                    Quantity =
+                        cartItem.Quantity,
+
+                    DiscountId =
+                        null
+                };
+
+
+            // -----------------------------------------------------
+            // SAVE ITEM
+            // -----------------------------------------------------
+
+            var savedItem =
+                await Data.SaveTransactionItemAsync(
+                    transactionItem);
+
+
+            Data.TransactionItems.Add(
+                savedItem);
+
+
+            // =====================================================
+            // SAVE SELECTED MODIFIERS
+            // =====================================================
+
+            foreach (var modifier in cartItem.SelectedModifiers)
+            {
+                var transactionItemModifier =
+                    new TransactionItemModifier
+                    {
+                        Id =
+                            Guid.NewGuid(),
+
+                        TransactionItemId =
+                            savedItem.Id,
+
+                        ModifierId =
+                            modifier.ModifierId,
+
+                        OptionId =
+                            modifier.OptionId
+                    };
+
+
+                var savedModifier =
+                    await Data.SaveTransactionItemModifierAsync(
+                        transactionItemModifier);
+
+
+                Data.TransactionItemModifiers.Add(
+                    savedModifier);
+            }
+        }
+
+
+        // =========================================================
+        // SAVE PAYMENT
+        // =========================================================
+
+        var payment =
+            new TransactionPayment
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                TransactionId =
+                    savedTransaction.Id,
+
+                PaymentTypeId =
+                    SelectedPaymentType.Id,
+
+                PaymentTypeName =
+                    SelectedPaymentType.Name,
+
+                Amount =
+                    Total,
+
+                CashReceived =
+                    SelectedPaymentType.IsCash
+                        ? CashReceived
+                        : 0,
+
+                ChangeAmount =
+                    SelectedPaymentType.IsCash
+                        ? Change
+                        : 0
+            };
+
+
+        var savedPayment =
+            await Data.SaveTransactionPaymentAsync(
+                payment);
+
+
+        // =========================================================
+        // UPDATE LOCAL CACHE
+        // =========================================================
+
+        Data.Transactions.Add(
+            savedTransaction);
+
+        Data.TransactionPayments.Add(
+            savedPayment);
+
+
+        // =========================================================
+        // RESET POS
+        // =========================================================
+
+        Cart.Clear();
+
+        System.Random random = new();
+        OrderNumber = random.Next(0, int.MaxValue);
+
+        ShowPaymentModal = false;
+
+        SelectedPaymentTypeId = null;
+
+        SelectedPaymentType = null;
+
+        CashReceived = 0;
+    }
+    catch (Exception ex)
+    {
+        ErrorMessage =
+            $"Failed to complete payment: {ex.Message}";
+    }
+}
+
+    // LOCAL CART MODELS
+    // =========================================================
+
+    private class CartItem
+    {
+        public Product Product { get; set; } = null!;
+
+        public int Quantity { get; set; }
+
+        public decimal UnitPrice { get; set; }
+
+        public List<SelectedModifier> SelectedModifiers { get; set; }
+            = new();
+    }
+
+
+    private class SelectedModifier
+    {
+        public Guid ModifierId { get; set; }
+
+        public string ModifierName { get; set; } = "";
+
+        public Guid OptionId { get; set; }
+
+        public string OptionName { get; set; } = "";
+
+        public decimal Price { get; set; }
+    }
+
+}

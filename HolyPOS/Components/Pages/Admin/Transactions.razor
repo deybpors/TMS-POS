@@ -683,17 +683,27 @@
 
                                             <div class="fw-semibold">
 
-                                                @item.ProductName
+                                                @Data.Products.FirstOrDefault(x => x.Id == item.ProductId)?.Name
 
                                             </div>
 
 
                                             @if (!string.IsNullOrWhiteSpace(
-                                                item.CategoryName))
+                                                @Data.Categories.FirstOrDefault(
+                                                                        x => x.Id ==
+                                                                            Data.Products.FirstOrDefault(
+                                                                                x => x.Id == item.ProductId
+                                                                            )?.CategoryId
+                                                                    )?.Name))
                                             {
                                                 <small class="text-muted">
 
-                                                    @item.CategoryName
+                                                    @Data.Categories.FirstOrDefault(
+                                                                        x => x.Id ==
+                                                                            Data.Products.FirstOrDefault(
+                                                                                x => x.Id == item.ProductId
+                                                                            )?.CategoryId
+                                                                    )?.Name
 
                                                 </small>
                                             }
@@ -703,7 +713,7 @@
 
                                                 @item.Quantity
                                                 ×
-                                                ₱@item.UnitPrice.ToString("N2")
+                                                ₱@Data.GetItemUnitPrice(item).ToString("N2")
 
                                             </small>
 
@@ -1078,7 +1088,7 @@
         TransactionItem item)
     {
         decimal subtotal =
-            item.UnitPrice *
+            Data.GetItemUnitPrice(item)*
             item.Quantity;
 
 
@@ -1337,7 +1347,7 @@
                         ||
 
                         x.Items.Any(item =>
-                            item.ProductName
+                            Data.Products.FirstOrDefault(x => x.Id == item.ProductId).Name
                                 .Contains(
                                     search,
                                     StringComparison.OrdinalIgnoreCase))
@@ -1636,4 +1646,6 @@
 
         public decimal Net { get; set; }
     }
+
+    
 }

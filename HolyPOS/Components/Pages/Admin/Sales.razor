@@ -1122,8 +1122,8 @@ private void LoadCategorySales(
 
 
                     decimal subtotal =
-                        item.UnitPrice *
-                        item.Quantity;
+    Data.GetItemUnitPrice(item) *
+    item.Quantity;
 
 
                     decimal discount =
@@ -1282,8 +1282,8 @@ private void LoadItemSales(
 
 
                     decimal subtotal =
-                        item.UnitPrice *
-                        item.Quantity;
+    Data.GetItemUnitPrice(item) *
+    item.Quantity;
 
 
                     decimal discount =
@@ -1332,9 +1332,6 @@ private void LoadItemSales(
                 {
                     ProductId =
                         first.ProductId,
-
-                    ProductName =
-                        first.ProductName,
 
                     CategoryName =
                         category?.Name
@@ -1853,7 +1850,8 @@ private void LoadItemSales(
             return 0m;
 
         decimal subtotal =
-            item.UnitPrice * item.Quantity;
+    Data.GetItemUnitPrice(item) *
+    item.Quantity;
 
         decimal discountAmount;
 
@@ -1893,4 +1891,5 @@ private void LoadItemSales(
             0m,
             subtotal);
     }
+
 }
