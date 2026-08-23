@@ -54,12 +54,8 @@ public class Transaction : BaseModel
     public decimal GrossProfit { get; set; }
 
 
-    // ============================================================
-    // REFUND
-    // ============================================================
-
-    [Column("is_refunded")]
-    public bool IsRefunded { get; set; }
+    [Column("type")]
+    public TransactionType Type {get; set;}
 
 
     // If this is a refund, this points to
@@ -74,4 +70,9 @@ public class Transaction : BaseModel
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
+
+    public enum TransactionType
+    {
+        Sale, Edited, Refunded
+    }
 }

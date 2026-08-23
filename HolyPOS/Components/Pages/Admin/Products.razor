@@ -7,6 +7,9 @@
 @inject DatabaseData Data
 @using Microsoft.AspNetCore.Components
 
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+
 <PageTitle>Products</PageTitle>
 <LoadingOverlay IsLoading="@IsLoading"
                 Message="@LoadingMessage" />

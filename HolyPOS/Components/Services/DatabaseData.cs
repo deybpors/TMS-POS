@@ -45,31 +45,45 @@ public class DatabaseData
     // ============================================================
 
     public async Task LoadAllAsync()
-    {
-        Products = await GetTableAsync<Product>();
+{
+    // Fetch reference data concurrently
+    var productsTask = GetTableAsync<Product>();
+    var categoriesTask = GetTableAsync<Category>();
+    var storesTask = GetTableAsync<Store>();
+    var productStoresTask = GetTableAsync<ProductStore>();
+    var productModifiersTask = GetTableAsync<ProductModifier>();
+    var modifiersTask = GetTableAsync<Modifier>();
+    var modifierOptionsTask = GetTableAsync<ModifierOption>();
+    var discountsTask = GetTableAsync<Discount>();
+    var paymentTypesTask = GetTableAsync<PaymentType>();
 
-        Categories = await GetTableAsync<Category>();
+    // Fetch transaction data concurrently
+    var transactionsTask = GetTableAsync<Transaction>();
+    var transactionItemsTask = GetTableAsync<TransactionItem>();
+    var transactionPaymentsTask = GetTableAsync<TransactionPayment>();
+    var transactionModifiersTask = GetTableAsync<TransactionItemModifier>();
 
-        Stores = await GetTableAsync<Store>();
+    await Task.WhenAll(
+        productsTask, categoriesTask, storesTask, productStoresTask,
+        productModifiersTask, modifiersTask, modifierOptionsTask,
+        discountsTask, paymentTypesTask, transactionsTask,
+        transactionItemsTask, transactionPaymentsTask, transactionModifiersTask
+    );
 
-        ProductStores = await GetTableAsync<ProductStore>();
-
-        ProductModifiers = await GetTableAsync<ProductModifier>();
-
-        Modifiers = await GetTableAsync<Modifier>();
-
-        ModifierOptions = await GetTableAsync<ModifierOption>();
-
-        Discounts = await GetTableAsync<Discount>();
-
-        PaymentTypes = await GetTableAsync<PaymentType>();
-        
-        Transactions = await GetTableAsync<Transaction>();
-        TransactionItems = await GetTableAsync<TransactionItem>();
-        TransactionPayments = await GetTableAsync<TransactionPayment>();
-        TransactionItemModifiers =
-    await GetTableAsync<TransactionItemModifier>();
-    }
+    Products = await productsTask;
+    Categories = await categoriesTask;
+    Stores = await storesTask;
+    ProductStores = await productStoresTask;
+    ProductModifiers = await productModifiersTask;
+    Modifiers = await modifiersTask;
+    ModifierOptions = await modifierOptionsTask;
+    Discounts = await discountsTask;
+    PaymentTypes = await paymentTypesTask;
+    Transactions = await transactionsTask;
+    TransactionItems = await transactionItemsTask;
+    TransactionPayments = await transactionPaymentsTask;
+    TransactionItemModifiers = await transactionModifiersTask;
+}
 
     // ============================================================
     // GENERIC SUPABASE GET
@@ -559,59 +573,34 @@ public class DatabaseData
 // SAVE PAYMENT TYPE
 // ============================================================
 
-public async Task SavePaymentTypeAsync(
-    PaymentType paymentType)
+public async Task SavePaymentTypeAsync(PaymentType paymentType)
 {
     if (paymentType.Id == Guid.Empty)
     {
-        // ========================================================
-        // NEW PAYMENT TYPE
-        // ========================================================
-
         paymentType.Id = Guid.NewGuid();
 
-
-        // ========================================================
-        // SUPABASE INSERT
-        // ========================================================
-
-        await _supabase.Client
+        var response = await _supabase.Client
             .From<PaymentType>()
             .Insert(paymentType);
 
+        // Check if Supabase actually returned the inserted row
+        if (response.Models == null || response.Models.Count == 0)
+        {
+           throw new Exception();
+        }
 
-        // ========================================================
-        // LOCAL CACHE
-        // ========================================================
-
-        PaymentTypes.Add(paymentType);
+        PaymentTypes.Add(response.Models.First());
     }
     else
     {
-        // ========================================================
-        // SUPABASE UPDATE
-        // ========================================================
-
-        await _supabase.Client
+        var response = await _supabase.Client
             .From<PaymentType>()
             .Where(x => x.Id == paymentType.Id)
             .Update(paymentType);
 
-
-        // ========================================================
-        // LOCAL CACHE
-        // ========================================================
-
-        var existing =
-            PaymentTypes.FirstOrDefault(
-                x => x.Id == paymentType.Id);
-
-        if (existing is not null)
+        if (response.Models == null || response.Models.Count == 0)
         {
-            var index =
-                PaymentTypes.IndexOf(existing);
-
-            PaymentTypes[index] = paymentType;
+            throw new Exception();
         }
     }
 }
@@ -803,34 +792,6 @@ public async Task DeletePaymentTypeAsync(
         {
             throw new Exception(
                 $"Failed to save transaction payment: {ex.Message}",
-                ex);
-        }
-    }
-    
-    // ============================================================
-// MARK TRANSACTION AS REFUNDED
-// ============================================================
-
-    public async Task MarkTransactionRefundedAsync(
-        Guid transactionId)
-    {
-        try
-        {
-            await _supabase.Client
-                .From<Transaction>()
-                .Filter(
-                    "id",
-                    Supabase.Postgrest.Constants.Operator.Equals,
-                    transactionId.ToString())
-                .Set(
-                    x => x.IsRefunded,
-                    true)
-                .Update();
-        }
-        catch (Exception ex)
-        {
-            throw new Exception(
-                $"Failed to mark transaction as refunded: {ex.Message}",
                 ex);
         }
     }

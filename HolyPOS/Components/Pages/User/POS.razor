@@ -1,14 +1,14 @@
-﻿@page "/"
-@page "/users/cashier"
+﻿@page "/users"
+@page "/users/pos"
 @rendermode InteractiveServer
 
-@using System.Security.Claims
-@using Microsoft.AspNetCore.Components.Authorization
+
 @using HolyPOS.Components.Models
 @using HolyPOS.Components.Services
 
+
 @inject DatabaseData Data
-@inject AuthenticationStateProvider AuthenticationStateProvider
+
 
 <PageTitle>Cashier</PageTitle>
 
@@ -389,6 +389,40 @@
 
                         </div>
 
+
+                        <!-- DISCOUNT -->
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+
+                            <button type="button"
+                                    class="btn btn-link btn-sm p-0 text-decoration-none d-flex align-items-center gap-1"
+                                    @onclick="() => OpenDiscountModal(item)">
+
+                                🏷️
+
+                                @if (item.Discount is not null)
+                                {
+                                    <span class="badge bg-success-subtle text-success">
+                                        @item.Discount.Name
+                                    </span>
+                                }
+                                else
+                                {
+                                    <small class="text-muted">
+                                        Add discount
+                                    </small>
+                                }
+
+                            </button>
+
+                            @if (item.Discount is not null)
+                            {
+                                <small class="text-success">
+                                    -₱@GetItemDiscountAmount(item).ToString("N2")
+                                </small>
+                            }
+
+                        </div>
+
                     </div>
                 }
             }
@@ -422,7 +456,7 @@
                 </span>
 
                 <span>
-                    ₱@Discount.ToString("N2")
+                    -₱@Discount.ToString("N2")
                 </span>
 
             </div>
@@ -721,6 +755,181 @@
 
 
 <!-- =============================================================
+     DISCOUNT MODAL
+============================================================= -->
+
+@if (ShowDiscountModal && DiscountTargetItem is not null)
+{
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         style="background-color:rgba(0,0,0,.5);">
+
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <h5 class="modal-title mb-0">
+                            Apply Discount
+                        </h5>
+
+                        <small class="text-muted">
+                            @DiscountTargetItem.Product.Name
+                        </small>
+
+                    </div>
+
+                    <button type="button"
+                            class="btn-close"
+                            @onclick="CloseDiscountModal">
+                    </button>
+
+                </div>
+
+
+                <div class="modal-body">
+
+                    <!-- NO DISCOUNT -->
+                    <button type="button"
+                            class="btn w-100 text-start border rounded-3 mb-2
+                            @(PendingDiscountId is null
+                                ? "border-success bg-success-subtle"
+                                : "bg-white")"
+                            @onclick="() => PendingDiscountId = null">
+
+                        <div class="d-flex align-items-center justify-content-between">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <input type="radio"
+                                       class="form-check-input m-0"
+                                       name="discount_option"
+                                       checked="@(PendingDiscountId is null)"
+                                       @onclick:stopPropagation />
+
+                                <span>
+                                    No discount
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </button>
+
+
+                    @if (!Data.Discounts.Any())
+                    {
+                        <div class="text-center text-muted py-4">
+
+                            No discounts have been set up yet.
+
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var discount in Data.Discounts)
+                        {
+                            <button type="button"
+                                    class="btn w-100 text-start border rounded-3 mb-2
+                                    @(PendingDiscountId == discount.Id
+                                        ? "border-success bg-success-subtle"
+                                        : "bg-white")"
+                                    @onclick="() => PendingDiscountId = discount.Id">
+
+                                <div class="d-flex align-items-center justify-content-between">
+
+                                    <div class="d-flex align-items-center gap-3">
+
+                                        <input type="radio"
+                                               class="form-check-input m-0"
+                                               name="discount_option"
+                                               checked="@(PendingDiscountId == discount.Id)"
+                                               @onclick:stopPropagation />
+
+                                        <span>
+                                            @discount.Name
+                                        </span>
+
+                                    </div>
+
+                                    <span class="text-success fw-semibold">
+                                        @GetDiscountLabel(discount)
+                                    </span>
+
+                                </div>
+
+                            </button>
+                        }
+                    }
+
+
+                    <div class="border-top pt-3 mt-3">
+
+                        <div class="d-flex justify-content-between">
+
+                            <span class="text-muted">
+                                Item total
+                            </span>
+
+                            <span>
+                                ₱@((DiscountTargetItem.UnitPrice * DiscountTargetItem.Quantity).ToString("N2"))
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between fs-5 fw-bold mt-2">
+
+                            <span>
+                                Discount preview
+                            </span>
+
+                            <span class="text-success">
+                                -₱@GetPendingDiscountAmount().ToString("N2")
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            @onclick="CloseDiscountModal">
+
+                        Cancel
+
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-success"
+                            @onclick="ApplyDiscount">
+
+                        Apply
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+<!-- =============================================================
      PAYMENT MODAL
 ============================================================= -->
 
@@ -955,6 +1164,17 @@
     private List<Modifier> SelectedProductModifiers = new();
 
     private Dictionary<Guid, HashSet<Guid>> SelectedModifierOptions = new();
+
+
+    // =========================================================
+    // DISCOUNT STATE
+    // =========================================================
+
+    private bool ShowDiscountModal;
+
+    private CartItem? DiscountTargetItem;
+
+    private Guid? PendingDiscountId;
 
 
     // =========================================================
@@ -1515,7 +1735,7 @@
 
 
     private decimal Discount =>
-        0;
+        Cart.Sum(GetItemDiscountAmount);
 
 
     private decimal Tax =>
@@ -1655,6 +1875,119 @@
     }
 
 
+    // =========================================================
+    // DISCOUNT MODAL
+    // =========================================================
+
+    private void OpenDiscountModal(CartItem item)
+    {
+        DiscountTargetItem = item;
+
+        PendingDiscountId = item.Discount?.Id;
+
+        ShowDiscountModal = true;
+    }
+
+
+    private void CloseDiscountModal()
+    {
+        ShowDiscountModal = false;
+
+        DiscountTargetItem = null;
+    }
+
+
+    private void ApplyDiscount()
+    {
+        if (DiscountTargetItem is null)
+            return;
+
+        DiscountTargetItem.Discount =
+            PendingDiscountId is null
+                ? null
+                : Data.Discounts
+                    .FirstOrDefault(x => x.Id == PendingDiscountId.Value);
+
+        ShowDiscountModal = false;
+
+        DiscountTargetItem = null;
+    }
+
+
+    private decimal GetPendingDiscountAmount()
+    {
+        if (DiscountTargetItem is null)
+            return 0m;
+
+        var discount =
+            PendingDiscountId is null
+                ? null
+                : Data.Discounts
+                    .FirstOrDefault(x => x.Id == PendingDiscountId.Value);
+
+        var itemTotal =
+            DiscountTargetItem.UnitPrice *
+            DiscountTargetItem.Quantity;
+
+        return GetDiscountAmount(discount, itemTotal);
+    }
+
+
+    private decimal GetItemDiscountAmount(CartItem item)
+    {
+        var itemTotal =
+            item.UnitPrice *
+            item.Quantity;
+
+        return GetDiscountAmount(item.Discount, itemTotal);
+    }
+
+
+    private string GetDiscountLabel(Discount discount)
+    {
+        var type = discount.DiscountType.ToString() ?? "";
+
+        if (type.Equals("percentage", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{discount.Value.ToString("N0")}%";
+        }
+
+        if (type.Equals("fixed_amount", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"-₱{discount.Value.ToString("N2")}";
+        }
+
+        return "";
+    }
+
+
+    private decimal GetDiscountAmount(Discount? discount, decimal baseAmount)
+    {
+        if (discount is null)
+            return 0m;
+
+        var type = discount.DiscountType.ToString() ?? "";
+
+        decimal amount;
+
+        if (type.Equals("percentage", StringComparison.OrdinalIgnoreCase))
+        {
+            amount = baseAmount * (discount.Value / 100m);
+        }
+        else if (type.Equals("fixed_amount", StringComparison.OrdinalIgnoreCase))
+        {
+            amount = discount.Value;
+        }
+        else
+        {
+            amount = 0m;
+        }
+
+        // Never allow the discount to exceed this item's total.
+        return Math.Clamp(amount, 0m, baseAmount);
+    }
+
+
     private decimal Change =>
         Math.Max(
             0,
@@ -1743,8 +2076,7 @@
                 GrossProfit =
                     Total,
 
-                IsRefunded =
-                    false,
+                Type = Transaction.TransactionType.Sale,
 
                 OriginalTransactionId =
                     null
@@ -1786,7 +2118,7 @@
                         cartItem.Quantity,
 
                     DiscountId =
-                        null
+                        cartItem.Discount?.Id
                 };
 
 
@@ -1924,6 +2256,8 @@
 
         public List<SelectedModifier> SelectedModifiers { get; set; }
             = new();
+
+        public Discount? Discount { get; set; }
     }
 
 

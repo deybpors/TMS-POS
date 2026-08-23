@@ -12,7 +12,7 @@
 }
 
 @code {
-    private List<UserPage> myUserPage = new();
+    private List<UserPage> myUserPage = new List<UserPage>();
 
     protected override void OnInitialized()
     {
@@ -25,14 +25,7 @@
                     Route = route.Template,
                     Name = GetPageName(route.Template)
                 }))
-            .Where(page => page.Route.StartsWith("/user/"))
-    // Only include routes like:
-    // /admin/products
-    // /admin/categories
-    // /admin/stores
-    // Exclude:
-    // /admin/products/new
-    // /admin/products/edit
+            .Where(page => page.Route.StartsWith("/users/"))
             .Where(page => page.Route.Trim('/').Split('/').Length == 2)
             .OrderBy(page => page.Name)
             .ToList();

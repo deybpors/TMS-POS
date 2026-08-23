@@ -1,6 +1,9 @@
 @page "/admin/modifiers"
 @rendermode InteractiveServer
 
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+
 @using HolyPOS.Components.Models
 @using HolyPOS.Components.Services
 @using HolyPOS.Components.Misc

@@ -1,3 +1,4 @@
+@page "/admin"
 @page "/admin/sales"
 @rendermode InteractiveServer
 
@@ -5,6 +6,9 @@
 @using HolyPOS.Components.Services
 @using HolyPOS.Components.Misc
 @using HolyPOS.Components.Layout
+
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 
 @inject DatabaseData Data
 
@@ -37,115 +41,90 @@
 
 
     <!-- ======================================================== -->
-    <!-- FILTER CARD -->
+    <!-- FILTER BAR -->
     <!-- ======================================================== -->
 
-    <div class="admin-card mb-4">
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
 
-        <div class="p-4">
+        <!-- REPORT -->
 
-            <div class="row g-3">
+        <select class="form-select"
+                style="width: 190px;"
+                @bind="SelectedReport"
+                @bind:after="FiltersChanged">
 
+            <option value="Category">
+                Sales by category
+            </option>
 
-                <!-- REPORT -->
+            <option value="Item">
+                Sales by item
+            </option>
 
-                <div class="col-md-3">
+            <option value="Modifier">
+                Sales by modifier
+            </option>
 
-                    <label class="form-label text-muted small">
-                        Report
-                    </label>
+            <option value="Payment">
+                Sales by payment type
+            </option>
 
-                    <select class="form-select"
-                            @bind="SelectedReport"
-                            @bind:after="FiltersChanged">
-
-                        <option value="Category">
-                            Sales by category
-                        </option>
-
-                        <option value="Item">
-                            Sales by item
-                        </option>
-
-                        <option value="Modifier">
-                            Sales by modifier
-                        </option>
-
-                        <option value="Payment">
-                            Sales by payment type
-                        </option>
-
-                    </select>
-
-                </div>
-                <DateRangePicker
-                StartDate="@DateFrom"
-                EndDate="@DateTo"
-                OnDateRangeChanged="DateRangeChanged" />
-                <!-- TIME -->
-
-                <div class="col-md-2">
-                
-                    <label class="form-label text-muted small">
-                        Time
-                    </label>
-
-                    <select class="form-select"
-                            @bind="SelectedTime"
-                            @bind:after="FiltersChanged">
-
-                        <option value="All day">
-                            All day
-                        </option>
-
-                        <option value="Morning">
-                            Morning
-                        </option>
-
-                        <option value="Afternoon">
-                            Afternoon
-                        </option>
-
-                        <option value="Evening">
-                            Evening
-                        </option>
-
-                    </select>
-
-                </div>
+        </select>
 
 
-                <!-- STORE -->
+        <!-- DATE RANGE -->
 
-                <div class="col-md-3">
+        <DateRangePicker
+            StartDate="@DateFrom"
+            EndDate="@DateTo"
+            OnDateRangeChanged="DateRangeChanged" />
 
-                    <label class="form-label text-muted small">
-                        Store
-                    </label>
 
-                    <select class="form-select"
-                            @bind="SelectedStore"
-                            @bind:after="FiltersChanged">
+        <!-- TIME -->
 
-                        <option value="">
-                            All stores
-                        </option>
+        <select class="form-select"
+                style="width: 130px;"
+                @bind="SelectedTime"
+                @bind:after="FiltersChanged">
 
-                        @foreach (var store in Data.Stores)
-                        {
-                            <option value="@store.Id">
-                                @store.Name
-                            </option>
-                        }
+            <option value="All day">
+                All day
+            </option>
 
-                    </select>
+            <option value="Morning">
+                Morning
+            </option>
 
-                </div>
-                
+            <option value="Afternoon">
+                Afternoon
+            </option>
 
-            </div>
+            <option value="Evening">
+                Evening
+            </option>
 
-        </div>
+        </select>
+
+
+        <!-- STORE -->
+
+        <select class="form-select"
+                style="width: 150px;"
+                @bind="SelectedStore"
+                @bind:after="FiltersChanged">
+
+            <option value="">
+                All stores
+            </option>
+
+            @foreach (var store in Data.Stores)
+            {
+                <option value="@store.Id">
+                    @store.Name
+                </option>
+            }
+
+        </select>
 
     </div>
 
@@ -1136,15 +1115,15 @@ private void LoadCategorySales(
                         discount;
 
 
-                    bool isRefund =
-                        transaction.IsRefunded;
+                    var transactionType = Data.Transactions
+                    .FirstOrDefault(x => x.Id == item.TransactionId)?.Type;
 
 
                     // =========================================
                     // SALE
                     // =========================================
 
-                    if (!isRefund)
+                    if (transactionType == Transaction.TransactionType.Sale)
                     {
                         grossSales +=
                             subtotal;
@@ -1161,7 +1140,7 @@ private void LoadCategorySales(
                     // REFUND
                     // =========================================
 
-                    else
+                    else if(transactionType == Transaction.TransactionType.Refunded)
                     {
                         refunds +=
                             total;
@@ -1296,14 +1275,14 @@ private void LoadItemSales(
                         discount;
 
 
-                    bool isRefund = transaction.IsRefunded;
+                    var transactionType = transaction.Type;
 
 
                     // =========================================
                     // SALE
                     // =========================================
 
-                    if (!isRefund)
+                    if (transactionType == Transaction.TransactionType.Sale)
                     {
                         itemsSold +=
                             item.Quantity;
@@ -1320,7 +1299,7 @@ private void LoadItemSales(
                     // REFUND
                     // =========================================
 
-                    else
+                    else if(transactionType == Transaction.TransactionType.Refunded)
                     {
                         refunds +=
                             total;

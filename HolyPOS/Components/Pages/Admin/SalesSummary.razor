@@ -4,8 +4,10 @@
 @using HolyPOS.Components.Models
 @using HolyPOS.Components.Services
 @inject DatabaseData Data
-<PageTitle>Sales Summary</PageTitle>
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 
+<PageTitle>Sales Summary</PageTitle>
 <div class="admin-page">
 
     <!-- ========================================================= -->
@@ -868,11 +870,27 @@
             DateTo.Date.AddDays(1);
 
 
+        // A transaction is "superseded" once another transaction
+        // exists that was created by editing it (Type == Edited,
+        // OriginalTransactionId pointing back at it). Without this,
+        // an edited transaction's old and new numbers would both
+        // get summed into these totals.
+
+        HashSet<Guid> supersededTransactionIds =
+            Data.Transactions
+                .Where(x =>
+                    x.Type == Transaction.TransactionType.Edited &&
+                    x.OriginalTransactionId.HasValue)
+                .Select(x => x.OriginalTransactionId!.Value)
+                .ToHashSet();
+
+
         List<Transaction> transactions =
             Data.Transactions
                 .Where(x =>
                     x.TransactionDate >= startDate &&
-                    x.TransactionDate < endDate)
+                    x.TransactionDate < endDate &&
+                    !supersededTransactionIds.Contains(x.Id))
                 .ToList();
 
 
@@ -972,7 +990,8 @@
             Data.Transactions
                 .Where(x =>
                     x.TransactionDate >= previousStart &&
-                    x.TransactionDate < previousEnd)
+                    x.TransactionDate < previousEnd &&
+                    !supersededTransactionIds.Contains(x.Id))
                 .ToList();
 
 

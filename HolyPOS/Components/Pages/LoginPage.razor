@@ -1,0 +1,135 @@
+@page "/"
+@page "/login"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+@using HolyPOS.Components.Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<h1>Login</h1>
+
+<div class="mb-3">
+
+    <label>Username</label>
+
+    <input class="form-control"
+           @bind="Username" />
+
+</div>
+
+<div class="mb-3">
+
+    <label>Password</label>
+
+    <input class="form-control"
+           type="password"
+           @bind="Password" />
+
+</div>
+
+<button class="btn btn-primary"
+        @onclick="Login">
+
+    Login
+
+</button>
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p class="text-danger mt-3">
+        @ErrorMessage
+    </p>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authProvider =
+                (CustomAuthStateProvider)
+                AuthenticationStateProvider;
+
+        var authState = await authProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+
+        if (user.Identity is { IsAuthenticated: true })
+        {
+            
+            string role = "Admin";
+
+            if (user.IsInRole("User"))
+            {
+                role = "User";
+            }
+
+            await authProvider.Login(
+            Username,
+            role
+            );
+
+            if (user.IsInRole("Admin"))
+            {
+                Navigation.NavigateTo("/admin");
+            }
+            else
+            {
+                Navigation.NavigateTo("/users");
+            }
+
+        }
+    }
+
+    private string Username = "";
+    private string Password = "";
+
+    private string ErrorMessage = "";
+
+    private async Task Login()
+    {
+        ErrorMessage = "";
+
+        string? role = null;
+
+        // TEST ADMIN
+        if (Username == "admin" &&
+            Password == "admin123")
+        {
+            role = "Admin";
+        }
+
+        // TEST USER
+        else if (Username == "user" &&
+                 Password == "user123")
+        {
+            role = "User";
+        }
+
+        if (role == null)
+        {
+            ErrorMessage = "Invalid username or password.";
+            return;
+        }
+
+        
+
+        var authProvider =
+            (CustomAuthStateProvider)
+            AuthenticationStateProvider;
+
+        await authProvider.Login(
+            Username,
+            role
+        );
+
+        if(role == "User")
+        {
+            Navigation.NavigateTo("/users");
+        }
+        else
+        {
+            Navigation.NavigateTo("/admin");
+        }
+    }
+}
