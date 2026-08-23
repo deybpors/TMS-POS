@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HolyPOS")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a24006600482c1617ff89f423ba2c285b36753d0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a1aab2b0eba26c328947c5e8cb257c7209fac58")]
 [assembly: System.Reflection.AssemblyProductAttribute("HolyPOS")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HolyPOS")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

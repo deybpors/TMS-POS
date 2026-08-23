@@ -1,7 +1,7 @@
-@using System.Reflection
+﻿@using System.Reflection
 @using Microsoft.AspNetCore.Components
 
-@foreach (var navPage in myUserPage)
+@foreach (var navPage in Pages)
 {
     <div class="nav-item px-3">
         <NavLink class="nav-link" href="@navPage.Route">
@@ -12,20 +12,23 @@
 }
 
 @code {
-    private List<UserPage> myUserPage = new List<UserPage>();
+    [Parameter]
+    public string Prefix { get; set; } = "/users/";
+
+    private List<NavPage> Pages = new();
 
     protected override void OnInitialized()
     {
-        myUserPage = Assembly.GetExecutingAssembly()
+        Pages = Assembly.GetExecutingAssembly()
             .GetTypes()
             .Where(type => !type.IsAbstract)
             .SelectMany(type => type.GetCustomAttributes<RouteAttribute>()
-                .Select(route => new UserPage
+                .Select(route => new NavPage
                 {
                     Route = route.Template,
                     Name = GetPageName(route.Template)
                 }))
-            .Where(page => page.Route.StartsWith("/users/"))
+            .Where(page => page.Route.StartsWith(Prefix))
             .Where(page => page.Route.Trim('/').Split('/').Length == 2)
             .OrderBy(page => page.Name)
             .ToList();
@@ -43,10 +46,11 @@
 
         return string.Join(" ",
             name.Split('-', StringSplitOptions.RemoveEmptyEntries)
-                .Select(word => char.ToUpper(word[0]) + word[1..]));
+                .Select(word =>
+                    char.ToUpper(word[0]) + word[1..]));
     }
 
-    private class UserPage
+    private class NavPage
     {
         public string Route { get; set; } = "";
         public string Name { get; set; } = "";

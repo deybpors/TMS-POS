@@ -12,6 +12,26 @@ public class DatabaseData
         _supabase = supabase;
     }
 
+
+    // ============================================================
+    // DIRTY FLAG
+    // ============================================================
+    //
+    // Starts true so the very first call to LoadAllAsync() always
+    // fetches. After that, LoadAllAsync() is a no-op until
+    // something calls MarkDirty() (which every Save/Delete method
+    // below does), so navigating between pages that don't mutate
+    // anything won't re-download every table each time.
+
+    private bool _isDirty = true;
+
+    public bool IsLoaded => !_isDirty;
+
+    public void MarkDirty()
+    {
+        _isDirty = true;
+    }
+
     // ============================================================
     // GLOBAL DATA
     // ============================================================
@@ -40,12 +60,17 @@ public class DatabaseData
     public List<TransactionPayment> TransactionPayments { get; private set; } = new();
 
     public List<TransactionItemModifier> TransactionItemModifiers { get; set; } = new();
+
+    public List<CashCount> CashCounts { get; private set; } = new();
     // ============================================================
     // LOAD EVERYTHING
     // ============================================================
 
     public async Task LoadAllAsync()
 {
+    if (!_isDirty)
+        return;
+
     // Fetch reference data concurrently
     var productsTask = GetTableAsync<Product>();
     var categoriesTask = GetTableAsync<Category>();
@@ -62,12 +87,14 @@ public class DatabaseData
     var transactionItemsTask = GetTableAsync<TransactionItem>();
     var transactionPaymentsTask = GetTableAsync<TransactionPayment>();
     var transactionModifiersTask = GetTableAsync<TransactionItemModifier>();
+    var cashCountsTask = GetTableAsync<CashCount>();
 
     await Task.WhenAll(
         productsTask, categoriesTask, storesTask, productStoresTask,
         productModifiersTask, modifiersTask, modifierOptionsTask,
         discountsTask, paymentTypesTask, transactionsTask,
-        transactionItemsTask, transactionPaymentsTask, transactionModifiersTask
+        transactionItemsTask, transactionPaymentsTask, transactionModifiersTask,
+        cashCountsTask
     );
 
     Products = await productsTask;
@@ -83,7 +110,26 @@ public class DatabaseData
     TransactionItems = await transactionItemsTask;
     TransactionPayments = await transactionPaymentsTask;
     TransactionItemModifiers = await transactionModifiersTask;
+    CashCounts = await cashCountsTask;
+
+    _isDirty = false;
 }
+
+
+    // ============================================================
+    // FORCE RELOAD
+    // ============================================================
+    //
+    // Bypasses the dirty check entirely — use sparingly (e.g. a
+    // manual "Refresh" button), since normal saves/deletes already
+    // mark the cache dirty on their own.
+
+    public async Task ForceReloadAsync()
+    {
+        MarkDirty();
+
+        await LoadAllAsync();
+    }
 
     // ============================================================
     // GENERIC SUPABASE GET
@@ -230,6 +276,8 @@ public class DatabaseData
             await RefreshProductsAsync();
             await RefreshProductStoresAsync();
             await RefreshProductModifiersAsync();
+
+            MarkDirty();
         }
         catch (Exception ex)
         {
@@ -281,6 +329,8 @@ public class DatabaseData
 
         ProductModifiers.RemoveAll(
             x => x.ProductId == productId);
+
+        MarkDirty();
     }
 
     // ============================================================
@@ -324,6 +374,8 @@ public class DatabaseData
 
             Categories[index] = category;
         }
+
+        MarkDirty();
     }
 
 
@@ -353,6 +405,8 @@ public class DatabaseData
 
         Categories.RemoveAll(
             x => x.Id == categoryId);
+
+        MarkDirty();
     }
 
     // ============================================================
@@ -396,6 +450,8 @@ public class DatabaseData
 
             Discounts[index] = discount;
         }
+
+        MarkDirty();
     }
 
 
@@ -423,6 +479,8 @@ public class DatabaseData
 
         Discounts.RemoveAll(
             x => x.Id == discountId);
+
+        MarkDirty();
     }
 
     // ============================================================
@@ -518,6 +576,8 @@ public class DatabaseData
             x => x.ModifierId == modifier.Id);
 
         ModifierOptions.AddRange(optionList);
+
+        MarkDirty();
     }
 
 
@@ -567,6 +627,8 @@ public class DatabaseData
 
         ModifierOptions.RemoveAll(
             x => x.ModifierId == modifierId);
+
+        MarkDirty();
     }
     
     // ============================================================
@@ -603,6 +665,8 @@ public async Task SavePaymentTypeAsync(PaymentType paymentType)
             throw new Exception();
         }
     }
+
+    MarkDirty();
 }
 
 
@@ -633,6 +697,8 @@ public async Task DeletePaymentTypeAsync(
 
     PaymentTypes.RemoveAll(
         x => x.Id == paymentTypeId);
+
+    MarkDirty();
 }
 
 // ============================================================
@@ -680,6 +746,8 @@ public async Task DeletePaymentTypeAsync(
                         .From<Store>()
                         .Insert(store);
 
+                MarkDirty();
+
                 return response.Models.First();
             }
 
@@ -690,6 +758,8 @@ public async Task DeletePaymentTypeAsync(
                     .Where(x =>
                         x.Id == store.Id)
                     .Update(store);
+
+            MarkDirty();
 
             return updateResponse.Models.First();
         }
@@ -718,6 +788,8 @@ public async Task DeletePaymentTypeAsync(
                     storeId.ToString())
                 .Set(x => x.Active, false)
                 .Update();
+
+            MarkDirty();
         }
         catch (Exception ex)
         {
@@ -739,6 +811,8 @@ public async Task DeletePaymentTypeAsync(
             var response = await _supabase.Client
                 .From<Transaction>()
                 .Insert(transaction);
+
+            MarkDirty();
 
             return response.Models.First();
         }
@@ -763,6 +837,8 @@ public async Task DeletePaymentTypeAsync(
                 .From<TransactionItem>()
                 .Insert(item);
 
+            MarkDirty();
+
             return response.Models.First();
         }
         catch (Exception ex)
@@ -785,6 +861,8 @@ public async Task DeletePaymentTypeAsync(
             var response = await _supabase.Client
                 .From<TransactionPayment>()
                 .Insert(payment);
+
+            MarkDirty();
 
             return response.Models.First();
         }
@@ -811,6 +889,8 @@ public async Task<TransactionItemModifier>
                 .From<TransactionItemModifier>()
                 .Insert(modifier);
 
+        MarkDirty();
+
         return response.Models.First();
     }
     catch (Exception ex)
@@ -820,6 +900,31 @@ public async Task<TransactionItemModifier>
             ex);
     }
 }
+
+    // ============================================================
+// CASH COUNT
+// ============================================================
+
+    public async Task<CashCount> SaveCashCountAsync(
+        CashCount cashCount)
+    {
+        try
+        {
+            var response = await _supabase.Client
+                .From<CashCount>()
+                .Insert(cashCount);
+
+            MarkDirty();
+
+            return response.Models.First();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(
+                $"Failed to save cash count: {ex.Message}",
+                ex);
+        }
+    }
 
 public decimal GetItemUnitPrice(TransactionItem item)
 {
@@ -896,5 +1001,58 @@ public decimal GetItemUnitPrice(TransactionItem item)
 
 
     return unitPrice;
+}
+
+// ============================================================
+// UPDATE CASH COUNT
+// ============================================================
+
+public async Task<CashCount> UpdateCashCountAsync(
+    CashCount cashCount)
+{
+    try
+    {
+        if (cashCount.Id == Guid.Empty)
+            throw new ArgumentException(
+                "Cash count ID cannot be empty.",
+                nameof(cashCount));
+
+        var response = await _supabase.Client
+            .From<CashCount>()
+            .Where(x => x.Id == cashCount.Id)
+            .Update(cashCount);
+
+        if (response.Models.Count == 0)
+        {
+            throw new Exception(
+                "Supabase did not return the updated cash count.");
+        }
+
+        var updated = response.Models.First();
+
+        // Update local cache
+        var existing = CashCounts
+            .FirstOrDefault(x => x.Id == updated.Id);
+
+        if (existing is null)
+        {
+            CashCounts.Add(updated);
+        }
+        else
+        {
+            var index = CashCounts.IndexOf(existing);
+            CashCounts[index] = updated;
+        }
+
+        // Don't force a full reload here.
+        // The local cache has already been updated.
+        return updated;
+    }
+    catch (Exception ex)
+    {
+        throw new Exception(
+            $"Failed to update cash count: {ex.Message}",
+            ex);
+    }
 }
 }

@@ -14,40 +14,33 @@
 
 <PageTitle>Sales</PageTitle>
 
-
 <LoadingOverlay IsLoading="@IsLoading"
                 Message="Loading sales..." />
 
-
 <div class="admin-page">
+@if (!string.IsNullOrWhiteSpace(LoadError))
+{
+    <div class="alert alert-danger m-4">
+        <h5>Sales page error</h5>
 
-    <!-- ======================================================== -->
+        <pre class="mb-0"
+             style="white-space: pre-wrap;">@LoadError</pre>
+    </div>
+}
     <!-- HEADER -->
-    <!-- ======================================================== -->
-
     <div class="page-header">
-
         <div>
-
             <h1>Sales</h1>
-
             <p>
                 View and analyze your sales.
             </p>
-
         </div>
-
     </div>
 
-
-    <!-- ======================================================== -->
     <!-- FILTER BAR -->
-    <!-- ======================================================== -->
-
     <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
 
         <!-- REPORT -->
-
         <select class="form-select"
                 style="width: 190px;"
                 @bind="SelectedReport"
@@ -71,17 +64,13 @@
 
         </select>
 
-
         <!-- DATE RANGE -->
-
         <DateRangePicker
             StartDate="@DateFrom"
             EndDate="@DateTo"
             OnDateRangeChanged="DateRangeChanged" />
 
-
         <!-- TIME -->
-
         <select class="form-select"
                 style="width: 130px;"
                 @bind="SelectedTime"
@@ -105,9 +94,7 @@
 
         </select>
 
-
         <!-- STORE -->
-
         <select class="form-select"
                 style="width: 150px;"
                 @bind="SelectedStore"
@@ -128,46 +115,34 @@
 
     </div>
 
-
-    <!-- ======================================================== -->
     <!-- REPORT -->
-    <!-- ======================================================== -->
-
     <div class="admin-card">
 
         <!-- REPORT HEADER -->
-
         <div class="d-flex justify-content-between align-items-center p-4">
 
             <div>
-
                 <h5 class="mb-1">
                     @ReportTitle
                 </h5>
 
                 <div class="text-muted small">
-
                     @DateFrom.ToString("MMM d, yyyy")
                     -
                     @DateTo.ToString("MMM d, yyyy")
-
                 </div>
-
             </div>
 
-
             <div class="text-muted small">
-
                 @GetRowCount() rows
-
             </div>
 
         </div>
 
 
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
         <!-- CATEGORY -->
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
 
         @if (SelectedReport == "Category")
         {
@@ -176,7 +151,6 @@
                 <table class="table table-hover align-middle mb-0">
 
                     <thead>
-
                         <tr>
 
                             <th>
@@ -214,23 +188,19 @@
                             </th>
 
                         </tr>
-
                     </thead>
-
 
                     <tbody>
 
                         @if (!CategoryRows.Any())
                         {
                             <tr>
-
                                 <td colspan="7"
                                     class="text-center text-muted py-5">
 
                                     No sales found.
 
                                 </td>
-
                             </tr>
                         }
                         else
@@ -274,7 +244,6 @@
                         }
 
                     </tbody>
-
 
                     @if (CategoryRows.Any())
                     {
@@ -321,9 +290,9 @@
         }
 
 
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
         <!-- ITEM -->
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
 
         @if (SelectedReport == "Item")
         {
@@ -336,7 +305,6 @@
                         <tr>
 
                             <th>
-
                                 <button class="btn btn-link p-0 text-dark text-decoration-none fw-semibold"
                                         @onclick="() => SortItem(nameof(SalesByItemRow.ProductName))">
 
@@ -344,11 +312,9 @@
                                     @SortIcon(nameof(SalesByItemRow.ProductName))
 
                                 </button>
-
                             </th>
 
                             <th>
-
                                 <button class="btn btn-link p-0 text-dark text-decoration-none fw-semibold"
                                         @onclick="() => SortItem(nameof(SalesByItemRow.CategoryName))">
 
@@ -356,7 +322,6 @@
                                     @SortIcon(nameof(SalesByItemRow.CategoryName))
 
                                 </button>
-
                             </th>
 
                             <th class="text-end">
@@ -382,7 +347,6 @@
                         </tr>
 
                     </thead>
-
 
                     <tbody>
 
@@ -441,7 +405,6 @@
 
                     </tbody>
 
-
                     @if (ItemRows.Any())
                     {
                         <tfoot>
@@ -483,9 +446,9 @@
         }
 
 
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
         <!-- MODIFIER -->
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
 
         @if (SelectedReport == "Modifier")
         {
@@ -498,7 +461,6 @@
                         <tr>
 
                             <th>
-
                                 <button class="btn btn-link p-0 text-dark text-decoration-none fw-semibold"
                                         @onclick="() => SortModifier(nameof(SalesByModifierRow.ModifierName))">
 
@@ -506,7 +468,6 @@
                                     @SortIcon(nameof(SalesByModifierRow.ModifierName))
 
                                 </button>
-
                             </th>
 
                             <th class="text-end">
@@ -532,7 +493,6 @@
                         </tr>
 
                     </thead>
-
 
                     <tbody>
 
@@ -585,7 +545,6 @@
 
                     </tbody>
 
-
                     @if (ModifierRows.Any())
                     {
                         <tfoot>
@@ -627,9 +586,9 @@
         }
 
 
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
         <!-- PAYMENT -->
-        <!-- ==================================================== -->
+        <!-- ====================================================== -->
 
         @if (SelectedReport == "Payment")
         {
@@ -642,7 +601,6 @@
                         <tr>
 
                             <th>
-
                                 <button class="btn btn-link p-0 text-dark text-decoration-none fw-semibold"
                                         @onclick="() => SortPayment(nameof(SalesByPaymentRow.PaymentTypeName))">
 
@@ -650,7 +608,6 @@
                                     @SortIcon(nameof(SalesByPaymentRow.PaymentTypeName))
 
                                 </button>
-
                             </th>
 
                             <th class="text-end">
@@ -676,7 +633,6 @@
                         </tr>
 
                     </thead>
-
 
                     <tbody>
 
@@ -728,7 +684,6 @@
                         }
 
                     </tbody>
-
 
                     @if (PaymentRows.Any())
                     {
@@ -845,19 +800,30 @@
     private bool SortAscending = true;
 
 
+    private int CurrentPage = 1;
+
+
     // ============================================================
     // INITIALIZE
     // ============================================================
 
+    private string? LoadError;
+
     protected override async Task OnInitializedAsync()
     {
         IsLoading = true;
+        LoadError = null;
 
         try
         {
             await Data.LoadAllAsync();
 
-            await LoadSalesReport();
+            LoadSalesReport();
+        }
+        catch (Exception ex)
+        {
+            LoadError = ex.ToString();
+            Console.WriteLine(ex.ToString());
         }
         finally
         {
@@ -870,12 +836,31 @@
     // FILTER CHANGED
     // ============================================================
 
-    private async Task FiltersChanged()
+    private void FiltersChanged()
     {
         if (DateFrom > DateTo)
             return;
 
-        await LoadSalesReport();
+        LoadSalesReport();
+    }
+
+
+    // ============================================================
+    // DATE RANGE
+    // ============================================================
+
+    private Task DateRangeChanged(
+        (DateTime Start, DateTime End) range)
+    {
+        DateFrom = range.Start;
+
+        DateTo = range.End;
+
+        CurrentPage = 1;
+
+        LoadSalesReport();
+
+        return Task.CompletedTask;
     }
 
 
@@ -883,16 +868,16 @@
     // LOAD REPORT
     // ============================================================
 
-    private Task LoadSalesReport()
+    private void LoadSalesReport()
     {
-        DateTime startDate = DateFrom.Date;
-        DateTime endDate = DateTo.Date.AddDays(1);
+        var filteredTransactions =
+            GetFilteredTransactions().ToList();
 
-        var filteredTransactions = Data.Transactions
-            .Where(x =>
-                x.TransactionDate >= startDate &&
-                x.TransactionDate < endDate)
-            .ToList();
+        // Clear reports that are not currently selected.
+        CategoryRows.Clear();
+        ItemRows.Clear();
+        ModifierRows.Clear();
+        PaymentRows.Clear();
 
         switch (SelectedReport)
         {
@@ -912,8 +897,6 @@
                 LoadPaymentSales(filteredTransactions);
                 break;
         }
-
-        return Task.CompletedTask;
     }
 
 
@@ -926,10 +909,7 @@
         IEnumerable<Transaction> result =
             Data.Transactions;
 
-
-        // ========================================================
         // DATE
-        // ========================================================
 
         DateTime start =
             DateFrom.Date;
@@ -937,15 +917,12 @@
         DateTime end =
             DateTo.Date.AddDays(1);
 
-
         result = result.Where(x =>
             x.TransactionDate >= start &&
             x.TransactionDate < end);
 
 
-        // ========================================================
         // STORE
-        // ========================================================
 
         if (!string.IsNullOrWhiteSpace(SelectedStore) &&
             Guid.TryParse(
@@ -957,35 +934,15 @@
         }
 
 
-        // ========================================================
         // EMPLOYEE
-        // ========================================================
-
-        /*
-         * Your current transactions table screenshot
-         * does NOT contain employee_id.
-         *
-         * Therefore this filter cannot currently
-         * filter anything.
-         *
-         * Once employee_id is added to transactions,
-         * uncomment the following:
-         *
-         * if (!string.IsNullOrWhiteSpace(SelectedEmployee) &&
-         *     Guid.TryParse(SelectedEmployee, out var employeeId))
-         * {
-         *     result = result.Where(x =>
-         *         x.EmployeeId == employeeId);
-         * }
-         */
+        //
+        // Currently disabled because transactions
+        // does not contain employee_id.
 
 
-        // ========================================================
         // TIME
-        // ========================================================
 
         result = result.Where(MatchesTime);
-
 
         return result;
     }
@@ -1000,10 +957,8 @@
         if (SelectedTime == "All day")
             return true;
 
-
         TimeSpan time =
             transaction.TransactionDate.TimeOfDay;
-
 
         return SelectedTime switch
         {
@@ -1028,319 +983,309 @@
     // CATEGORY SALES
     // ============================================================
 
-    // ============================================================
-// CATEGORY SALES
-// ============================================================
+    private void LoadCategorySales(
+        List<Transaction> transactions)
+    {
+        var transactionIds =
+            transactions
+                .Select(x => x.Id)
+                .ToHashSet();
 
-private void LoadCategorySales(
-    List<Transaction> transactions)
-{
-    var transactionIds =
-        transactions
-            .Select(x => x.Id)
-            .ToHashSet();
+        var transactionLookup =
+            transactions.ToDictionary(x => x.Id);
 
+        var productLookup =
+            Data.Products.ToDictionary(x => x.Id);
 
-    var transactionLookup =
-        transactions.ToDictionary(
-            x => x.Id);
+        var categoryLookup =
+            Data.Categories.ToDictionary(x => x.Id);
 
-
-    var items =
-        Data.TransactionItems
-            .Where(x =>
-                transactionIds.Contains(
-                    x.TransactionId))
-            .ToList();
+        var discountLookup =
+            Data.Discounts.ToDictionary(x => x.Id);
 
 
-    CategoryRows =
-        items
-            .GroupBy(x =>
-            {
-                var product =
-                    Data.Products.FirstOrDefault(
-                        p => p.Id == x.ProductId);
-
-                return product?.CategoryId;
-            })
-            .Select(group =>
-            {
-                Guid? categoryId =
-                    group.Key;
+        var items =
+            Data.TransactionItems
+                .Where(x =>
+                    transactionIds.Contains(
+                        x.TransactionId))
+                .ToList();
 
 
-                var category =
-                    categoryId.HasValue
-                        ? Data.Categories.FirstOrDefault(
-                            x =>
-                                x.Id ==
-                                categoryId.Value)
-                        : null;
-
-
-                decimal grossSales = 0m;
-
-                decimal refunds = 0m;
-
-                decimal discounts = 0m;
-
-                decimal itemsSold = 0m;
-
-                decimal itemsRefunded = 0m;
-
-
-                foreach (var item in group)
+        CategoryRows =
+            items
+                .GroupBy(x =>
                 {
-                    if (!transactionLookup.TryGetValue(
-                        item.TransactionId,
-                        out var transaction))
+                    if (!x.ProductId.HasValue ||
+                        !productLookup.TryGetValue(x.ProductId.Value, out var product))
                     {
-                        continue;
+                        return (Guid?)null;
                     }
 
+                    return product.CategoryId;
+                })
+                .Select(group =>
+                {
+                    Guid? categoryId =
+                        group.Key;
 
-                    decimal subtotal =
-    Data.GetItemUnitPrice(item) *
-    item.Quantity;
-
-
-                    decimal discount =
-                        CalculateDiscountAmount(
-                            item);
-
-
-                    decimal total =
-                        subtotal -
-                        discount;
+                    categoryLookup.TryGetValue(
+                        categoryId ?? Guid.Empty,
+                        out var category);
 
 
-                    var transactionType = Data.Transactions
-                    .FirstOrDefault(x => x.Id == item.TransactionId)?.Type;
+                    decimal grossSales = 0m;
+
+                    decimal refunds = 0m;
+
+                    decimal discounts = 0m;
+
+                    decimal itemsSold = 0m;
+
+                    decimal itemsRefunded = 0m;
 
 
-                    // =========================================
-                    // SALE
-                    // =========================================
-
-                    if (transactionType == Transaction.TransactionType.Sale)
+                    foreach (var item in group)
                     {
-                        grossSales +=
-                            subtotal;
+                        if (!transactionLookup.TryGetValue(
+                            item.TransactionId,
+                            out var transaction))
+                        {
+                            continue;
+                        }
 
-                        discounts +=
+
+                        decimal subtotal =
+                            Data.GetItemUnitPrice(item) *
+                            item.Quantity;
+
+
+                        decimal discount =
+                            CalculateDiscountAmount(
+                                item,
+                                discountLookup);
+
+
+                        decimal total =
+                            subtotal -
                             discount;
 
-                        itemsSold +=
-                            item.Quantity;
+
+                        var transactionType =
+                            transaction.Type;
+
+
+                        if (transactionType ==
+                            Transaction.TransactionType.Sale)
+                        {
+                            grossSales += subtotal;
+
+                            discounts += discount;
+
+                            itemsSold += item.Quantity;
+                        }
+                        else if (transactionType ==
+                                 Transaction.TransactionType.Refunded)
+                        {
+                            refunds += total;
+
+                            itemsRefunded +=
+                                item.Quantity;
+                        }
                     }
 
 
-                    // =========================================
-                    // REFUND
-                    // =========================================
-
-                    else if(transactionType == Transaction.TransactionType.Refunded)
+                    return new SalesByCategoryRow
                     {
-                        refunds +=
-                            total;
+                        CategoryId =
+                            categoryId,
 
-                        itemsRefunded +=
-                            item.Quantity;
-                    }
-                }
+                        CategoryName =
+                            category?.Name
+                            ?? "No category",
 
+                        ItemsSold =
+                            itemsSold,
 
-                return new SalesByCategoryRow
-                {
-                    CategoryId =
-                        categoryId,
+                        GrossSales =
+                            grossSales,
 
-                    CategoryName =
-                        category?.Name
-                        ?? "No category",
+                        ItemsRefunded =
+                            itemsRefunded,
 
-                    ItemsSold =
-                        itemsSold,
+                        Refunds =
+                            refunds,
 
-                    GrossSales =
-                        grossSales,
-
-                    ItemsRefunded =
-                        itemsRefunded,
-
-                    Refunds =
-                        refunds,
-
-                    Discounts =
-                        discounts
-                };
-            })
-            .ToList();
+                        Discounts =
+                            discounts
+                    };
+                })
+                .ToList();
 
 
-    ApplyCategorySort();
-}
+        ApplyCategorySort();
+    }
 
 
     // ============================================================
     // ITEM SALES
     // ============================================================
 
-    // ============================================================
-// ITEM SALES
-// ============================================================
+    private void LoadItemSales(
+        List<Transaction> transactions)
+    {
+        var transactionIds =
+            transactions
+                .Select(x => x.Id)
+                .ToHashSet();
 
-private void LoadItemSales(
-    List<Transaction> transactions)
-{
-    var transactionIds =
-        transactions
-            .Select(x => x.Id)
-            .ToHashSet();
+        var transactionLookup =
+            transactions.ToDictionary(x => x.Id);
 
+        var productLookup =
+            Data.Products.ToDictionary(x => x.Id);
 
-    var transactionLookup =
-        transactions.ToDictionary(
-            x => x.Id);
+        var categoryLookup =
+            Data.Categories.ToDictionary(x => x.Id);
 
-
-    var items =
-        Data.TransactionItems
-            .Where(x =>
-                transactionIds.Contains(
-                    x.TransactionId))
-            .ToList();
+        var discountLookup =
+            Data.Discounts.ToDictionary(x => x.Id);
 
 
-    ItemRows =
-        items
-            .GroupBy(x =>
-                x.ProductId)
-            .Select(group =>
-            {
-                var first =
-                    group.First();
+        var items =
+            Data.TransactionItems
+                .Where(x =>
+                    transactionIds.Contains(
+                        x.TransactionId))
+                .ToList();
 
 
-                var product =
-                    first.ProductId.HasValue
-                        ? Data.Products.FirstOrDefault(
-                            x =>
-                                x.Id ==
-                                first.ProductId.Value)
-                        : null;
-
-
-                var category =
-                    product?.CategoryId is Guid categoryId
-                        ? Data.Categories.FirstOrDefault(
-                            x =>
-                                x.Id ==
-                                categoryId)
-                        : null;
-
-
-                decimal itemsSold = 0m;
-
-                decimal grossSales = 0m;
-
-                decimal refunds = 0m;
-
-                decimal discounts = 0m;
-
-
-                foreach (var item in group)
+        ItemRows =
+            items
+                .GroupBy(x =>
+                    x.ProductId)
+                .Select(group =>
                 {
-                    if (!transactionLookup.TryGetValue(
-                        item.TransactionId,
-                        out var transaction))
+                    var first =
+                        group.First();
+
+
+                    Product? product = null;
+
+                    if (first.ProductId.HasValue)
                     {
-                        continue;
+                        productLookup.TryGetValue(
+                            first.ProductId.Value,
+                            out product);
                     }
 
 
-                    decimal subtotal =
-    Data.GetItemUnitPrice(item) *
-    item.Quantity;
+                    var category =
+                        product != null &&
+                        product.CategoryId.HasValue
+                            ? categoryLookup.GetValueOrDefault(
+                                product.CategoryId.Value)
+                            : null;
 
 
-                    decimal discount =
-                        CalculateDiscountAmount(
-                            item);
+                    decimal itemsSold = 0m;
+
+                    decimal grossSales = 0m;
+
+                    decimal refunds = 0m;
+
+                    decimal discounts = 0m;
 
 
-                    decimal total =
-                        subtotal -
-                        discount;
-
-
-                    var transactionType = transaction.Type;
-
-
-                    // =========================================
-                    // SALE
-                    // =========================================
-
-                    if (transactionType == Transaction.TransactionType.Sale)
+                    foreach (var item in group)
                     {
-                        itemsSold +=
+                        if (!transactionLookup.TryGetValue(
+                            item.TransactionId,
+                            out var transaction))
+                        {
+                            continue;
+                        }
+
+
+                        decimal subtotal =
+                            Data.GetItemUnitPrice(item) *
                             item.Quantity;
 
-                        grossSales +=
-                            subtotal;
 
-                        discounts +=
+                        decimal discount =
+                            CalculateDiscountAmount(
+                                item,
+                                discountLookup);
+
+
+                        decimal total =
+                            subtotal -
                             discount;
+
+
+                        var transactionType =
+                            transaction.Type;
+
+
+                        if (transactionType ==
+                            Transaction.TransactionType.Sale)
+                        {
+                            itemsSold +=
+                                item.Quantity;
+
+                            grossSales +=
+                                subtotal;
+
+                            discounts +=
+                                discount;
+                        }
+                        else if (transactionType ==
+                                 Transaction.TransactionType.Refunded)
+                        {
+                            refunds += total;
+                        }
                     }
 
 
-                    // =========================================
-                    // REFUND
-                    // =========================================
-
-                    else if(transactionType == Transaction.TransactionType.Refunded)
+                    return new SalesByItemRow
                     {
-                        refunds +=
-                            total;
-                    }
-                }
+                        ProductId =
+                            first.ProductId,
+
+                        ProductName =
+                            product?.Name
+                            ?? "Unknown product",
+
+                        CategoryName =
+                            category?.Name
+                            ?? "No category",
+
+                        ItemsSold =
+                            itemsSold,
+
+                        GrossSales =
+                            grossSales,
+
+                        Refunds =
+                            refunds,
+
+                        Discounts =
+                            discounts
+                    };
+                })
+                .ToList();
 
 
-                return new SalesByItemRow
-                {
-                    ProductId =
-                        first.ProductId,
-
-                    CategoryName =
-                        category?.Name
-                        ?? "No category",
-
-                    ItemsSold =
-                        itemsSold,
-
-                    GrossSales =
-                        grossSales,
-
-                    Refunds =
-                        refunds,
-
-                    Discounts =
-                        discounts
-                };
-            })
-            .ToList();
-
-
-    ApplyItemSort();
-}
+        ApplyItemSort();
+    }
 
 
     // ============================================================
     // PAYMENT SALES
     // ============================================================
 
-    private void LoadPaymentSales(List<Transaction> transactions)
+    private void LoadPaymentSales(
+        List<Transaction> transactions)
     {
         var transactionIds =
             transactions
@@ -1386,25 +1331,13 @@ private void LoadItemSales(
                                 x.Amount),
 
                         Refunds =
-                            0,
+                            0m,
 
                         Discounts =
-                            0
+                            0m
                     };
                 })
                 .ToList();
-
-
-        /*
-         * Payment totals come from transaction_payments.
-         *
-         * Discounts/refunds belong to the transaction,
-         * not the payment itself.
-         *
-         * If you allow split payments, distributing
-         * discounts/refunds between payment types requires
-         * an allocation rule.
-         */
 
 
         ApplyPaymentSort();
@@ -1415,25 +1348,81 @@ private void LoadItemSales(
     // MODIFIER SALES
     // ============================================================
 
-    private void LoadModifierSales(List<Transaction> transactions)
+    private void LoadModifierSales(
+        List<Transaction> transactions)
     {
-        
-        /*TODO
-         * IMPORTANT:
-         *
+        /*
          * Your current transaction_items table does not
          * contain the modifier that was actually selected.
          *
-         * Therefore we cannot calculate historical
-         * modifier sales from the current tables.
-         *
-         * Do NOT use ModifierOptions here as a fake
-         * sales source.
+         * Therefore historical modifier sales cannot
+         * currently be calculated from the existing data.
          */
 
         ModifierRows = new();
 
         ApplyModifierSort();
+    }
+
+
+    // ============================================================
+    // DISCOUNT
+    // ============================================================
+
+    private decimal CalculateDiscountAmount(
+        TransactionItem item,
+        Dictionary<Guid, Discount> discountLookup)
+    {
+        if (!item.DiscountId.HasValue)
+            return 0m;
+
+
+        if (!discountLookup.TryGetValue(
+            item.DiscountId.Value,
+            out var discount))
+        {
+            return 0m;
+        }
+
+
+        decimal subtotal =
+            Data.GetItemUnitPrice(item) *
+            item.Quantity;
+
+
+        decimal discountAmount;
+
+
+        string discountType =
+            discount.DiscountType.ToString()
+            ?? "";
+
+
+        if (discountType.Equals(
+            "percentage",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            discountAmount =
+                subtotal *
+                (discount.Value / 100m);
+        }
+        else if (discountType.Equals(
+            "fixed_amount",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            discountAmount =
+                discount.Value;
+        }
+        else
+        {
+            discountAmount = 0m;
+        }
+
+
+        return Math.Clamp(
+            discountAmount,
+            0m,
+            subtotal);
     }
 
 
@@ -1632,9 +1621,11 @@ private void LoadItemSales(
         }
         else
         {
-            SortColumn = column;
+            SortColumn =
+                column;
 
-            SortAscending = true;
+            SortAscending =
+                true;
         }
     }
 
@@ -1792,83 +1783,4 @@ private void LoadItemSales(
             Refunds -
             Discounts;
     }
-    
-    private int CurrentPage = 1;
-    
-    // =========================================================
-    // DATE RANGE
-    // =========================================================
-
-    private async Task DateRangeChanged(
-        (DateTime Start, DateTime End) range)
-    {
-        DateFrom = range.Start;
-
-        DateTo = range.End;
-
-        CurrentPage = 1;
-
-        await FiltersChanged();
-    }
-    
-    // ============================================================
-    // DISCOUNT CALCULATION
-    // ============================================================
-
-    private decimal CalculateDiscountAmount(
-        TransactionItem item)
-    {
-        if (!item.DiscountId.HasValue)
-            return 0m;
-
-        var discount =
-            Data.Discounts.FirstOrDefault(x =>
-                x.Id == item.DiscountId.Value);
-
-        if (discount is null)
-            return 0m;
-
-        decimal subtotal =
-    Data.GetItemUnitPrice(item) *
-    item.Quantity;
-
-        decimal discountAmount;
-
-    // Supabase PostgreSQL enum values:
-    // percentage
-    // fixed_amount
-
-        string discountType =
-            discount.DiscountType.ToString()
-            ?? "";
-
-        if (discountType.Equals(
-            "percentage",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            discountAmount =
-                subtotal *
-                (discount.Value / 100m);
-        }
-        else if (discountType.Equals(
-            "fixed_amount",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            discountAmount =
-                discount.Value;
-        }
-        else
-        {
-            discountAmount = 0m;
-        }
-
-    // Never allow the discount to exceed
-    // the item's subtotal.
-
-        return Math.Clamp(
-            discountAmount,
-            0m,
-            subtotal);
-    }
-
 }

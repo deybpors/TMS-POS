@@ -1,0 +1,1416 @@
+﻿@page "/admin/cashcounts"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Layout
+
+@inject DatabaseData Data
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+
+<PageTitle>Cash Counts</PageTitle>
+
+
+@if (IsAuthorized)
+{
+<div class="admin-page">
+
+    <!-- ===================================================== -->
+    <!-- HEADER -->
+    <!-- ===================================================== -->
+
+    <div class="page-header">
+
+        <div>
+            <h1>Cash Counts</h1>
+
+            <p>
+                Review daily cash drawer counts submitted by cashiers.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- FILTERS -->
+    <!-- ===================================================== -->
+
+    <div class="admin-card mb-4">
+
+        <div class="p-4">
+
+            <div class="row g-3 align-items-end">
+
+                <DateRangePicker
+                    StartDate="@DateFrom"
+                    EndDate="@DateTo"
+                    OnDateRangeChanged="DateRangeChanged" />
+
+
+                <!-- STORE -->
+
+                <div class="col-md-3">
+
+                    <label class="form-label text-muted small">
+                        Store
+                    </label>
+
+                    <select class="form-select"
+                            @bind="SelectedStore"
+                            @bind:after="FiltersChanged">
+
+                        <option value="">
+                            All stores
+                        </option>
+
+                        @foreach (var store in Data.Stores
+                            .Where(x => x.Active)
+                            .OrderBy(x => x.Name))
+                        {
+                            <option value="@store.Id">
+                                @store.Name
+                            </option>
+                        }
+
+                    </select>
+
+                </div>
+
+
+                <!-- SEARCH -->
+
+                <div class="col-md-3">
+
+                    <label class="form-label text-muted small">
+                        Search
+                    </label>
+
+                    <input type="search"
+                           class="form-control"
+                           placeholder="Sellers..."
+                           @bind="Search"
+                           @bind:event="oninput"
+                           @bind:after="FiltersChanged" />
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- TABLE -->
+    <!-- ===================================================== -->
+
+    <div class="admin-card">
+
+        <div class="table-responsive">
+
+            <table class="table align-middle mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th class="px-4">
+                            Date
+                        </th>
+
+                        <th>
+                            Store
+                        </th>
+
+                        <th>
+                            Sellers
+                        </th>
+
+                        <th>
+                            Beginning Balance
+                        </th>
+
+                        <th>
+                            Expenses
+                        </th>
+
+                        <th>
+                            Cash Count
+                        </th>
+
+                        <th>
+                            Verification
+                        </th>
+
+                        <th>
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    @if (IsLoading)
+                    {
+                        <tr>
+
+                            <td colspan="8"
+                                class="text-center py-5">
+
+                                <div class="spinner-border"
+                                     role="status">
+
+                                    <span class="visually-hidden">
+                                        Loading...
+                                    </span>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+                    }
+                    else if (!PagedCashCounts.Any())
+                    {
+                        <tr>
+
+                            <td colspan="8"
+                                class="text-center text-muted py-5">
+
+                                No cash counts found.
+
+                            </td>
+
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var row in PagedCashCounts)
+                        {
+                            <tr>
+
+                                <!-- DATE -->
+
+                                <td class="px-4">
+
+                                    @row.CashCount.Date.ToString("MMM dd, yyyy")
+
+                                </td>
+
+
+                                <!-- STORE -->
+
+                                <td>
+
+                                    @row.StoreName
+
+                                </td>
+
+
+                                <!-- SELLERS -->
+
+                                <td>
+
+                                    @row.CashCount.Sellers
+
+                                </td>
+
+
+                                <!-- BEGINNING BALANCE -->
+
+                                <td>
+
+                                    ₱@row.CashCount.BeginningBalance.ToString("N2")
+
+                                </td>
+
+
+                                <!-- EXPENSES -->
+
+                                <td>
+
+                                    ₱@GetTotalExpenses(row.CashCount).ToString("N2")
+
+                                </td>
+
+
+                                <!-- CASH COUNT -->
+
+                                <td>
+
+                                    ₱@row.CashCount.CashCountAmount.ToString("N2")
+
+                                </td>
+
+
+                                <!-- VERIFICATION -->
+
+                                <td>
+
+                                    @if (row.CashCount.IsVerified)
+                                    {
+                                        <span class="badge bg-success">
+                                            Verified
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">
+                                            Not verified
+                                        </span>
+                                    }
+
+                                </td>
+
+
+                                <!-- ACTIONS -->
+
+                                <td class="text-end px-4">
+
+                                    <div class="d-inline-flex gap-2">
+
+                                        <button type="button"
+                                                class="btn btn-outline-secondary btn-sm"
+                                                @onclick="() => ViewCashCount(row)">
+
+                                            View
+
+                                        </button>
+
+                                        @if (!row.CashCount.IsVerified)
+                                        {
+                                            <button type="button"
+                                                    class="btn btn-success btn-sm"
+                                                    disabled="@IsVerifyingSelected"
+                                                    @onclick="() => VerifyCashCount(row)">
+
+                                                @(IsVerifyingSelected ? "Verifying..." : "Verify")
+
+                                            </button>
+                                        }
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- PAGINATION -->
+        <!-- ================================================= -->
+
+        <div class="d-flex align-items-center p-3 border-top">
+
+            <div class="btn-group">
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@(!HasPreviousPage)"
+                        @onclick="PreviousPage">
+
+                    <i class="bi bi-chevron-left"></i>
+
+                </button>
+
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@(!HasNextPage)"
+                        @onclick="NextPage">
+
+                    <i class="bi bi-chevron-right"></i>
+
+                </button>
+
+            </div>
+
+
+            <div class="ms-4 d-flex align-items-center gap-2">
+
+                <span>
+                    Page:
+                </span>
+
+                <span class="fw-semibold">
+                    @CurrentPage
+                </span>
+
+                <span>
+                    of @TotalPages
+                </span>
+
+
+                <span class="ms-4">
+                    Rows per page:
+                </span>
+
+
+                <select class="form-select"
+                        style="width:90px;"
+                        @bind="RowsPerPage"
+                        @bind:after="RowsPerPageChanged">
+
+                    <option value="10">
+                        10
+                    </option>
+
+                    <option value="25">
+                        25
+                    </option>
+
+                    <option value="50">
+                        50
+                    </option>
+
+                    <option value="100">
+                        100
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+}
+
+
+<!-- ========================================================= -->
+<!-- CASH COUNT DETAILS MODAL -->
+<!-- ========================================================= -->
+
+@if (Selected is not null)
+{
+    var totalCashSales =
+        GetTotalCashSales(Selected.CashCount);
+
+    var totalExpenses =
+        SelectedExpenses.Sum(x => x.Amount);
+
+    var expectedCash =
+        Selected.CashCount.BeginningBalance +
+        totalCashSales -
+        totalExpenses;
+
+    var variance =
+        Selected.CashCount.CashCountAmount -
+        expectedCash;
+
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+
+            <div class="modal-content">
+
+                <!-- HEADER -->
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <h5 class="modal-title">
+                            Cash Count
+                        </h5>
+
+                        <small class="text-muted">
+                            @Selected.CashCount.Date.ToString("MMMM dd, yyyy")
+                        </small>
+
+                    </div>
+
+                    <button type="button"
+                            class="btn-close"
+                            @onclick="CloseModal">
+                    </button>
+
+                </div>
+
+
+                <!-- BODY -->
+
+                <div class="modal-body">
+                @if (!string.IsNullOrWhiteSpace(ModalError))
+                {
+                    <div class="alert alert-danger">
+                        @ModalError
+                    </div>
+                }
+
+                    <!-- BASIC INFORMATION -->
+
+                    <div class="row g-3 mb-4">
+
+                        <div class="col-md-4">
+
+                            <div class="text-muted small">
+                                Date
+                            </div>
+
+                            <div class="fw-semibold">
+                                @Selected.CashCount.Date.ToString("MMM dd, yyyy")
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <div class="text-muted small">
+                                Store
+                            </div>
+
+                            <div class="fw-semibold">
+                                @Selected.StoreName
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <div class="text-muted small">
+                                Sellers
+                            </div>
+
+                            <div class="fw-semibold">
+                                @Selected.CashCount.Sellers
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- EXPENSES -->
+
+                    <h6 class="mb-3">
+                        Expenses
+                    </h6>
+
+
+                    @if (!SelectedExpenses.Any())
+                    {
+                        <div class="text-muted mb-4">
+                            No expenses logged for this day.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="border rounded mb-4">
+
+                            @foreach (var expense in SelectedExpenses)
+                            {
+                                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+
+                                    <div>
+                                        <div>
+                                            @expense.Description
+                                        </div>
+
+                                        <div class="text-muted small">
+                                            ₱@expense.Amount.ToString("N2")
+                                        </div>
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm"
+                                            title="Delete expense"
+                                            @onclick="() => DeleteExpense(expense)">
+
+                                        <i class="bi bi-trash"></i>
+
+                                    </button>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+                    @if (ExpensesChanged)
+                    {
+                        <div class="d-flex justify-content-end mb-4">
+                    
+                            <button type="button"
+                                    class="btn btn-primary"
+                                    disabled="@IsSavingExpenses"
+                                    @onclick="SaveExpenses">
+                    
+                                @(IsSavingExpenses
+                                    ? "Saving..."
+                                    : "Save")
+                    
+                            </button>
+                    
+                        </div>
+                    }
+
+
+                    <!-- TOTALS -->
+
+                    <div class="mt-4">
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span>
+                                Beginning Balance
+                            </span>
+
+                            <span>
+                                ₱@Selected.CashCount.BeginningBalance.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span>
+                                Total Cash Sales
+                            </span>
+
+                            <span>
+                                ₱@totalCashSales.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between mb-2">
+
+                            <span>
+                                Total Expenses
+                            </span>
+
+                            <span>
+                                -₱@totalExpenses.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <hr />
+
+
+                        <div class="d-flex justify-content-between fw-bold mb-2">
+
+                            <span>
+                                Expected Cash
+                            </span>
+
+                            <span>
+                                ₱@expectedCash.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between fw-bold mb-2">
+
+                            <span>
+                                Cash Count Amount
+                            </span>
+
+                            <span>
+                                ₱@Selected.CashCount.CashCountAmount.ToString("N2")
+                            </span>
+
+                        </div>
+
+
+                        <hr />
+
+
+                        <div class="d-flex justify-content-between fw-bold fs-5">
+
+                            <span>
+                                Variance
+                            </span>
+
+                            <span class="@(variance != 0 ? "text-danger" : "text-success")">
+                                ₱@variance.ToString("N2")
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- FOOTER -->
+
+                <div class="modal-footer">
+
+                    @if (!Selected.CashCount.IsVerified)
+                    {
+                        <button type="button"
+                                class="btn btn-success me-auto"
+                                disabled="@IsVerifyingSelected"
+                                @onclick="VerifySelectedCashCount">
+
+                            @(IsVerifyingSelected ? "Verifying..." : "Verify")
+
+                        </button>
+                    }
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="CloseModal">
+
+                        CLOSE
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+
+    // =========================================================
+    // AUTH
+    // =========================================================
+
+    private bool IsAuthorized;
+
+
+    // =========================================================
+    // STATE
+    // =========================================================
+
+    private bool IsLoading;
+
+    private List<CashCountRow> AllCashCounts = new();
+
+    private CashCountRow? Selected;
+
+    private List<CashCountExpense> SelectedExpenses = new();
+
+    private List<CashCountExpense> OriginalExpenses = new();
+
+    private string? ModalError;
+
+    private bool IsSavingExpenses;
+    
+    private bool ExpensesChanged =>
+        !ExpensesAreEqual(
+            OriginalExpenses,
+            SelectedExpenses);
+
+    private Guid? VerifyingId;
+
+    private bool IsVerifyingSelected;
+
+
+    // =========================================================
+    // DATE
+    // =========================================================
+
+    private DateTime DateFrom =
+        DateTime.Today.AddDays(-29);
+
+    private DateTime DateTo =
+        DateTime.Today;
+
+
+    // =========================================================
+    // FILTERS
+    // =========================================================
+
+    private string SelectedStore = "";
+
+    private string Search = "";
+
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    private int CurrentPage = 1;
+
+    private int RowsPerPage = 10;
+
+    
+    private bool ExpensesAreEqual(
+        List<CashCountExpense> first,
+        List<CashCountExpense> second)
+    {
+        if (first.Count != second.Count)
+            return false;
+
+        for (int i = 0; i < first.Count; i++)
+        {
+            if (!string.Equals(
+                first[i].Description,
+                second[i].Description,
+                StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (first[i].Amount != second[i].Amount)
+                return false;
+        }
+
+        return true;
+    }
+    
+    // =========================================================
+    // INITIALIZE
+    // =========================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not { IsAuthenticated: true } ||
+            !user.IsInRole("Admin"))
+        {
+            Navigation.NavigateTo("/login", forceLoad: false);
+            return;
+        }
+
+        IsAuthorized = true;
+
+        IsLoading = true;
+
+        try
+        {
+            await Data.LoadAllAsync();
+
+            BuildCashCounts();
+        }
+        catch
+        {
+            AllCashCounts = new();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    // =========================================================
+    // BUILD DATA
+    // =========================================================
+
+    private void BuildCashCounts()
+    {
+        // NOTE: assumes DatabaseData exposes a loaded
+        // List<CashCount> CashCounts collection, following the
+        // same pattern as Data.Transactions elsewhere.
+        AllCashCounts =
+            Data.CashCounts
+                .Select(cashCount =>
+                {
+                    var store =
+                        cashCount.StoreId.HasValue
+                            ? Data.Stores.FirstOrDefault(
+                                x =>
+                                    x.Id ==
+                                    cashCount.StoreId.Value)
+                            : null;
+
+                    return new CashCountRow
+                    {
+                        CashCount = cashCount,
+
+                        StoreName =
+                            store?.Name ??
+                            "Unknown store"
+                    };
+                })
+                .OrderByDescending(x =>
+                    x.CashCount.Date)
+                .ToList();
+    }
+
+
+    // =========================================================
+    // EXPENSE TOTAL
+    // =========================================================
+
+    private decimal GetTotalExpenses(CashCount cashCount)
+    {
+        return cashCount.Expenses.Sum(x => x.Amount);
+    }
+
+
+    // =========================================================
+    // TOTAL CASH SALES (from transaction payments)
+    // =========================================================
+
+    private decimal GetTotalCashSales(CashCount cashCount)
+    {
+        // NOTE: assumes Data.PaymentTypes contains a row named
+        // "Cash", and Data.TransactionPayments has TransactionId,
+        // PaymentTypeId, and Amount fields — matching the pattern
+        // used when saving payments in POS.razor.
+
+        var cashPaymentType =
+            Data.PaymentTypes.FirstOrDefault(x =>
+                x.Name.Equals(
+                    "Cash",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (cashPaymentType is null)
+            return 0m;
+
+        var dayStart =
+            cashCount.Date.Date;
+
+        var dayEnd =
+            dayStart.AddDays(1);
+
+        var transactionIdsForDay =
+            Data.Transactions
+                .Where(t =>
+                    t.TransactionDate >= dayStart &&
+                    t.TransactionDate < dayEnd &&
+                    t.Type != Transaction.TransactionType.Refunded &&
+                    (cashCount.StoreId == null ||
+                        t.StoreId == cashCount.StoreId))
+                .Select(t => t.Id)
+                .ToHashSet();
+
+        return Data.TransactionPayments
+            .Where(p =>
+                p.PaymentTypeId == cashPaymentType.Id &&
+                transactionIdsForDay.Contains(p.TransactionId))
+            .Sum(p => p.Amount);
+    }
+
+
+    // =========================================================
+    // FILTERED CASH COUNTS
+    // =========================================================
+
+    private IEnumerable<CashCountRow> FilteredCashCounts
+    {
+        get
+        {
+            IEnumerable<CashCountRow> result =
+                AllCashCounts;
+
+
+            // =================================================
+            // DATE
+            // =================================================
+
+            DateTime start =
+                DateFrom.Date;
+
+            DateTime end =
+                DateTo.Date.AddDays(1);
+
+            result =
+                result.Where(x =>
+                    x.CashCount.Date >= start &&
+                    x.CashCount.Date < end);
+
+
+            // =================================================
+            // STORE
+            // =================================================
+
+            if (!string.IsNullOrWhiteSpace(SelectedStore) &&
+                Guid.TryParse(SelectedStore, out Guid storeId))
+            {
+                result =
+                    result.Where(x =>
+                        x.CashCount.StoreId ==
+                        storeId);
+            }
+
+
+            // =================================================
+            // SEARCH
+            // =================================================
+
+            if (!string.IsNullOrWhiteSpace(Search))
+            {
+                string search =
+                    Search.Trim();
+
+                result =
+                    result.Where(x =>
+                        x.CashCount.Sellers
+                            .Contains(
+                                search,
+                                StringComparison.OrdinalIgnoreCase)
+
+                        ||
+
+                        x.StoreName
+                            .Contains(
+                                search,
+                                StringComparison.OrdinalIgnoreCase));
+            }
+
+
+            return result
+                .OrderByDescending(x =>
+                    x.CashCount.Date);
+        }
+    }
+
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    private IEnumerable<CashCountRow> PagedCashCounts =>
+        FilteredCashCounts
+            .Skip(
+                (CurrentPage - 1) *
+                RowsPerPage)
+            .Take(RowsPerPage);
+
+
+    private int TotalPages =>
+        Math.Max(
+            1,
+            (int)Math.Ceiling(
+                FilteredCashCounts.Count()
+                / (double)RowsPerPage));
+
+
+    private bool HasPreviousPage =>
+        CurrentPage > 1;
+
+
+    private bool HasNextPage =>
+        CurrentPage < TotalPages;
+
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1)
+            CurrentPage--;
+    }
+
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages)
+            CurrentPage++;
+    }
+
+
+    private void RowsPerPageChanged()
+    {
+        CurrentPage = 1;
+    }
+
+
+    // =========================================================
+    // FILTER CHANGED
+    // =========================================================
+
+    private Task FiltersChanged()
+    {
+        CurrentPage = 1;
+
+        return Task.CompletedTask;
+    }
+
+
+    private async Task DateRangeChanged(
+        (DateTime Start, DateTime End) range)
+    {
+        DateFrom =
+            range.Start;
+
+        DateTo =
+            range.End;
+
+        CurrentPage = 1;
+
+        await Task.CompletedTask;
+    }
+
+
+    // =========================================================
+    // VIEW / CLOSE
+    // =========================================================
+
+    private void ViewCashCount(CashCountRow row)
+    {
+        Selected = row;
+
+        OriginalExpenses =
+            row.CashCount.Expenses
+                .Select(x => new CashCountExpense
+                {
+                    Description = x.Description,
+                    Amount = x.Amount
+                })
+                .ToList();
+
+        SelectedExpenses =
+            OriginalExpenses
+                .Select(x => new CashCountExpense
+                {
+                    Description = x.Description,
+                    Amount = x.Amount
+                })
+                .ToList();
+
+        IsSavingExpenses = false;
+        IsVerifyingSelected = false;
+        ModalError = null;
+    }
+
+
+    private void CloseModal()
+    {
+        Selected = null;
+        SelectedExpenses = new();
+        IsSavingExpenses = false;
+        IsVerifyingSelected = false;
+    }
+
+
+    // =========================================================
+    // EXPENSES
+    // =========================================================
+
+    private void DeleteExpense(
+        CashCountExpense expense)
+    {
+        SelectedExpenses.Remove(expense);
+
+    // ExpensesChanged is now calculated automatically
+    // by comparing SelectedExpenses against OriginalExpenses.
+    }
+
+
+    private async Task SaveExpenses()
+{
+    if (Selected is null ||
+        !ExpensesChanged ||
+        IsSavingExpenses)
+    {
+        return;
+    }
+
+    IsSavingExpenses = true;
+    ModalError = null;
+
+    try
+    {
+        var updatedCashCount =
+            new CashCount
+            {
+                Id =
+                    Selected.CashCount.Id,
+
+                Date =
+                    Selected.CashCount.Date,
+
+                StoreId =
+                    Selected.CashCount.StoreId,
+
+                Sellers =
+                    Selected.CashCount.Sellers,
+
+                BeginningBalance =
+                    Selected.CashCount.BeginningBalance,
+
+                Expenses =
+                    SelectedExpenses
+                        .Select(x =>
+                            new CashCountExpense
+                            {
+                                Description =
+                                    x.Description,
+
+                                Amount =
+                                    x.Amount
+                            })
+                        .ToList(),
+
+                CashCountAmount =
+                    Selected.CashCount.CashCountAmount,
+
+                CreatedAt =
+                    Selected.CashCount.CreatedAt,
+
+                IsVerified =
+                    Selected.CashCount.IsVerified
+            };
+
+
+        // DATABASE UPDATE
+        var saved =
+            await Data.UpdateCashCountAsync(
+                updatedCashCount);
+
+
+        // Only modify the UI state AFTER
+        // the database successfully updated.
+
+        Selected.CashCount = saved;
+
+
+        var rowIndex =
+            AllCashCounts.IndexOf(Selected);
+
+        if (rowIndex >= 0)
+        {
+            AllCashCounts[rowIndex].CashCount =
+                saved;
+        }
+
+
+        OriginalExpenses =
+            saved.Expenses
+                .Select(x =>
+                    new CashCountExpense
+                    {
+                        Description =
+                            x.Description,
+
+                        Amount =
+                            x.Amount
+                    })
+                .ToList();
+
+
+        SelectedExpenses =
+            OriginalExpenses
+                .Select(x =>
+                    new CashCountExpense
+                    {
+                        Description =
+                            x.Description,
+
+                        Amount =
+                            x.Amount
+                    })
+                .ToList();
+    }
+    catch (Exception ex)
+    {
+        ModalError =
+            $"Failed to save expenses: {ex.Message}";
+    }
+    finally
+    {
+        IsSavingExpenses = false;
+    }
+}
+
+
+    // =========================================================
+    // VERIFICATION
+    // =========================================================
+
+    private async Task VerifyCashCount(
+        CashCountRow row)
+    {
+        if (row.CashCount.IsVerified ||
+            VerifyingId.HasValue)
+        {
+            return;
+        }
+
+        VerifyingId =
+            row.CashCount.Id;
+
+        try
+        {
+            var updatedCashCount =
+                new CashCount
+                {
+                    Id =
+                        row.CashCount.Id,
+
+                    Date =
+                        row.CashCount.Date,
+
+                    StoreId =
+                        row.CashCount.StoreId,
+
+                    Sellers =
+                        row.CashCount.Sellers,
+
+                    BeginningBalance =
+                        row.CashCount.BeginningBalance,
+
+                    Expenses =
+                        row.CashCount.Expenses
+                            .Select(x =>
+                                new CashCountExpense
+                                {
+                                    Description =
+                                        x.Description,
+
+                                    Amount =
+                                        x.Amount
+                                })
+                            .ToList(),
+
+                    CashCountAmount =
+                        row.CashCount.CashCountAmount,
+
+                    CreatedAt =
+                        row.CashCount.CreatedAt,
+
+                    IsVerified =
+                        true
+                };
+
+
+            var saved =
+                await Data.UpdateCashCountAsync(
+                    updatedCashCount);
+
+
+            row.CashCount =
+                saved;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            ModalError =
+                $"Failed to verify cash count: {ex.Message}";
+        }
+        finally
+        {
+            VerifyingId = null;
+        }
+    }
+
+
+    private async Task VerifySelectedCashCount()
+    {
+        if (Selected is null ||
+            Selected.CashCount.IsVerified ||
+            IsVerifyingSelected)
+        {
+            return;
+        }
+
+        IsVerifyingSelected = true;
+        ModalError = null;
+
+        try
+        {
+            var updatedCashCount =
+                new CashCount
+                {
+                    Id =
+                        Selected.CashCount.Id,
+
+                    Date =
+                        Selected.CashCount.Date,
+
+                    StoreId =
+                        Selected.CashCount.StoreId,
+
+                    Sellers =
+                        Selected.CashCount.Sellers,
+
+                    BeginningBalance =
+                        Selected.CashCount.BeginningBalance,
+
+                    Expenses =
+                        Selected.CashCount.Expenses
+                            .Select(x =>
+                                new CashCountExpense
+                                {
+                                    Description =
+                                        x.Description,
+
+                                    Amount =
+                                        x.Amount
+                                })
+                            .ToList(),
+
+                    CashCountAmount =
+                        Selected.CashCount.CashCountAmount,
+
+                    CreatedAt =
+                        Selected.CashCount.CreatedAt,
+
+                    IsVerified =
+                        true
+                };
+
+
+            var saved =
+                await Data.UpdateCashCountAsync(
+                    updatedCashCount);
+
+
+            Selected.CashCount =
+                saved;
+
+
+            var rowIndex =
+                AllCashCounts.IndexOf(Selected);
+
+            if (rowIndex >= 0)
+            {
+                AllCashCounts[rowIndex].CashCount =
+                    saved;
+            }
+        }
+        catch (Exception ex)
+        {
+            ModalError =
+                $"Failed to verify cash count: {ex.Message}";
+        }
+        finally
+        {
+            IsVerifyingSelected = false;
+        }
+    }
+
+
+    // =========================================================
+    // ROW MODEL
+    // =========================================================
+
+    private class CashCountRow
+    {
+        public CashCount CashCount { get; set; } = null!;
+
+        public string StoreName { get; set; } = "";
+    }
+
+}

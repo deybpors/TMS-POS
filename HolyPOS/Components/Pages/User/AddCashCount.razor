@@ -1,0 +1,407 @@
+﻿@page "/users/cashcount"
+@rendermode InteractiveServer
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject DatabaseData Data
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+
+<PageTitle>Cash Count</PageTitle>
+
+
+@if (IsAuthorized)
+{
+<div class="admin-page">
+
+    <div class="page-header">
+
+        <div>
+            <h1>Cash Count</h1>
+
+            <p>
+                Record today's cash drawer count.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-body p-4">
+
+            @if (IsSaved)
+            {
+                <div class="alert alert-success">
+
+                    Cash count saved successfully.
+
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="alert alert-danger">
+
+                    @ErrorMessage
+
+                </div>
+            }
+
+
+            <!-- DATE -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Date
+                </label>
+
+                <input type="text"
+                       class="form-control"
+                       value="@Today.ToString("MMMM dd, yyyy")"
+                       readonly />
+
+            </div>
+
+
+            <!-- STORE -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Store
+                </label>
+
+                <select class="form-select"
+                        @bind="SelectedStoreId">
+
+                    <option value="">
+                        Select a store
+                    </option>
+
+                    @foreach (var store in Data.Stores
+                        .Where(x => x.Active)
+                        .OrderBy(x => x.Name))
+                    {
+                        <option value="@store.Id">
+                            @store.Name
+                        </option>
+                    }
+
+                </select>
+
+            </div>
+
+
+            <!-- SELLERS -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Sellers
+                </label>
+
+                <input type="text"
+                       class="form-control"
+                       placeholder="e.g. Juan, Maria"
+                       @bind="Sellers" />
+
+            </div>
+
+
+            <!-- BEGINNING BALANCE -->
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Beginning Balance
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        ₱
+                    </span>
+
+                    <input type="number"
+                           class="form-control"
+                           step="0.01"
+                           min="0"
+                           @bind="BeginningBalance" />
+
+                </div>
+
+            </div>
+
+
+            <!-- EXPENSES -->
+
+            <div class="mb-3">
+
+                <label class="form-label d-flex justify-content-between align-items-center">
+
+                    <span>
+                        Expenses
+                    </span>
+
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            @onclick="AddExpenseRow">
+
+                        + Add Expense
+
+                    </button>
+
+                </label>
+
+
+                @if (!Expenses.Any())
+                {
+                    <div class="text-muted small">
+                        No expenses logged for today.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var expense in Expenses)
+                    {
+                        <div class="d-flex gap-2 mb-2">
+
+                            <input type="text"
+                                   class="form-control"
+                                   placeholder="Description"
+                                   @bind="expense.Description" />
+
+                            <div class="input-group"
+                                 style="max-width:160px;">
+
+                                <span class="input-group-text">
+                                    ₱
+                                </span>
+
+                                <input type="number"
+                                       class="form-control"
+                                       step="0.01"
+                                       min="0"
+                                       @bind="expense.Amount" />
+
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-outline-danger"
+                                    @onclick="() => RemoveExpenseRow(expense)">
+
+                                <i class="bi bi-trash"></i>
+
+                            </button>
+
+                        </div>
+                    }
+                }
+
+
+                @if (Expenses.Any())
+                {
+                    <div class="text-end text-muted small mt-1">
+
+                        Total expenses: ₱@TotalExpenses.ToString("N2")
+
+                    </div>
+                }
+
+            </div>
+
+
+            <!-- CASH COUNT AMOUNT -->
+
+            <div class="mb-4">
+
+                <label class="form-label">
+                    Cash Count Amount
+                </label>
+
+                <div class="input-group">
+
+                    <span class="input-group-text">
+                        ₱
+                    </span>
+
+                    <input type="number"
+                           class="form-control"
+                           step="0.01"
+                           min="0"
+                           @bind="CashCountAmount" />
+
+                </div>
+
+                <div class="form-text">
+                    The actual physical cash counted from the drawer.
+                </div>
+
+            </div>
+
+
+            <button type="button"
+                    class="btn btn-success btn-lg w-100"
+                    disabled="@IsSaving"
+                    @onclick="SaveCashCount">
+
+                @if (IsSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-2">
+                    </span>
+
+                    <span>
+                        SAVING...
+                    </span>
+                }
+                else
+                {
+                    <span>
+                        SAVE CASH COUNT
+                    </span>
+                }
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+}
+
+
+@code {
+
+    private bool IsAuthorized;
+
+    private DateTime Today =
+        DateTime.Today;
+
+    private string SelectedStoreId = "";
+
+    private string Sellers = "";
+
+    private decimal BeginningBalance;
+
+    private List<CashCountExpense> Expenses = new();
+
+    private decimal CashCountAmount;
+
+    private bool IsSaving;
+
+    private bool IsSaved;
+
+    private string ErrorMessage = "";
+
+
+    private decimal TotalExpenses =>
+        Expenses.Sum(x => x.Amount);
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not { IsAuthenticated: true } ||
+            (!user.IsInRole("User") && !user.IsInRole("Admin")))
+        {
+            Navigation.NavigateTo("/login", forceLoad: false);
+            return;
+        }
+
+        IsAuthorized = true;
+    }
+
+
+    private void AddExpenseRow()
+    {
+        Expenses.Add(new CashCountExpense());
+    }
+
+
+    private void RemoveExpenseRow(CashCountExpense expense)
+    {
+        Expenses.Remove(expense);
+    }
+
+
+    private async Task SaveCashCount()
+    {
+        IsSaved = false;
+        ErrorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(Sellers))
+        {
+            ErrorMessage = "Please enter who counted the drawer.";
+            return;
+        }
+
+        Guid? storeId =
+            Guid.TryParse(SelectedStoreId, out var parsedStoreId)
+                ? parsedStoreId
+                : null;
+
+        if (storeId is null)
+        {
+            ErrorMessage = "Please select a store.";
+            return;
+        }
+
+        IsSaving = true;
+
+        try
+        {
+            var cashCount = new CashCount
+            {
+                Id = Guid.NewGuid(),
+
+                Date = Today,
+
+                StoreId = storeId,
+
+                Sellers = Sellers.Trim(),
+
+                BeginningBalance = BeginningBalance,
+
+                Expenses = Expenses
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Description))
+                    .ToList(),
+
+                CashCountAmount = CashCountAmount
+            };
+
+            // NOTE: assumes a DatabaseData.SaveCashCountAsync(CashCount)
+            // method exists, following the same pattern as
+            // SaveTransactionAsync / SaveTransactionItemAsync elsewhere
+            // in this codebase.
+            var saved =
+                await Data.SaveCashCountAsync(cashCount);
+
+            Data.CashCounts.Add(saved);
+
+            IsSaved = true;
+
+            // Reset the form for the next entry.
+            Sellers = "";
+            BeginningBalance = 0;
+            Expenses = new();
+            CashCountAmount = 0;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                $"Failed to save cash count: {ex.Message}";
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+}
