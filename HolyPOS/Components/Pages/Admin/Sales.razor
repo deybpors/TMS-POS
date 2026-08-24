@@ -27,17 +27,11 @@
              style="white-space: pre-wrap;">@LoadError</pre>
     </div>
 }
-    <!-- HEADER -->
-    <div class="page-header">
-        <div>
-            <h1>Sales</h1>
-            <p>
-                View and analyze your sales.
-            </p>
-        </div>
-    </div>
+<!-- HEADER -->
 
-    <!-- FILTER BAR -->
+<PageHeader Head="Sales" SubHead="View and analyze your sales." />
+
+<!-- FILTER BAR -->
     <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
 
         <!-- REPORT -->
@@ -1313,11 +1307,10 @@
 
                     return new SalesByPaymentRow
                     {
-                        PaymentTypeId =
-                            first.PaymentTypeId,
+                        PaymentTypeId = first.PaymentTypeId,
 
-                        PaymentTypeName =
-                            first.PaymentTypeName,
+                        PaymentTypeName = Data.PaymentTypes
+                            .FirstOrDefault(x => x.Id == first.PaymentTypeId)?.Name ?? "Unknown Payment Type",
 
                         Transactions =
                             group

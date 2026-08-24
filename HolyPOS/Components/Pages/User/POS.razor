@@ -5,96 +5,286 @@
 
 @using HolyPOS.Components.Models
 @using HolyPOS.Components.Services
-
-
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Drawing
+@using System.Drawing.Printing
+@using System.Net.Mime
+@implements IDisposable
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DatabaseData Data
 
 
 <PageTitle>Cashier</PageTitle>
+<div class="min-vh-100 bg-light">
 
-<div class="vh-100 d-flex overflow-hidden bg-light">
+    <div class="row g-0 min-vh-100">
 
-    <!-- =========================================================
-         CENTER: PRODUCTS
-    ========================================================== -->
+        <!-- =========================================================
+             PRODUCTS
+        ========================================================== -->
 
-    <div class="flex-grow-1 d-flex flex-column overflow-hidden">
+        <div class="col-12 col-lg-8 d-flex flex-column">
 
-        <!-- HEADER -->
-        <div class="bg-white border-bottom p-3">
+            <!-- HEADER -->
+            <div class="bg-white border-bottom p-2 p-lg-3">
 
-            <div class="d-flex align-items-center justify-content-between gap-3">
+                <div class="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center justify-content-between gap-2 gap-lg-3">
 
-                <div class="flex-grow-1">
+                    <div class="flex-grow-1">
 
-                    <h4 class="mb-0">
-                        New Order
-                    </h4>
+                        <h4 class="mb-0">
+                            New Order
+                        </h4>
 
-                    <small class="text-muted">
+                        <small class="text-muted">
 
-                        @if (CurrentStore is not null)
-                        {
-                            @CurrentStore.Name
-                        }
-                        else
-                        {
-                            <span>
-                                Store not selected
-                            </span>
-                        }
+                            @if (CurrentStore is not null)
+                            {
+                                @CurrentStore.Name
+                            }
+                            else
+                            {
+                                <span>
+                                    Store not selected
+                                </span>
+                            }
 
-                        · Order #@OrderNumber
+                            · Order #@OrderNumber
 
-                    </small>
+                        </small>
 
-                </div>
+                    </div>
 
 
-                <!-- CATEGORY -->
-                <div style="width: 200px;">
+                    <!-- CATEGORY -->
+                    <div class="w-100 w-lg-auto">
 
-                    <select class="form-select"
-                            @bind="SelectedCategoryId">
+                        <select class="form-select"
+                                @bind="SelectedCategoryId">
 
-                        <option value="">
-                            All Categories
-                        </option>
-
-                        @foreach (var category in ActiveCategories)
-                        {
-                            <option value="@category.Id">
-                                @GetCategoryIcon(category.Name)
-                                @category.Name
+                            <option value="">
+                                All Categories
                             </option>
+
+                            @foreach (var category in ActiveCategories)
+                            {
+                                <option value="@category.Id">
+                                    @GetCategoryIcon(category.Name)
+                                    @category.Name
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <!-- PRINTER -->
+                    <div class="w-100 w-lg-auto">
+                    
+                        <select class="form-select"
+                                @bind="SelectedPrinterName">
+                    
+                            <option value="">
+                                No printer
+                            </option>
+                    
+                            @foreach (var printer in AvailablePrinters)
+                            {
+                                <option value="@printer">
+                                    @printer
+                                </option>
+                            }
+                    
+                        </select>
+                    
+                    </div>
+                    
+                    <!-- SEARCH -->
+                    <div class="input-group flex-grow-1">
+
+                        <span class="input-group-text bg-white">
+                            🔍
+                        </span>
+
+                        <input type="text"
+                               class="form-control"
+                               placeholder="Search products..."
+                               @bind="SearchText"
+                               @bind:event="oninput" />
+
+                        @if (!string.IsNullOrWhiteSpace(SearchText))
+                        {
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    @onclick="ClearSearch">
+
+                                ×
+
+                            </button>
                         }
 
-                    </select>
+                    </div>
 
                 </div>
 
+            </div>
 
-                <!-- SEARCH -->
-                <div class="input-group"
-                     style="max-width:400px;">
 
-                    <span class="input-group-text bg-white">
-                        🔍
-                    </span>
+            <!-- ERROR -->
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="alert alert-danger rounded-0 mb-0">
 
-                    <input type="text"
-                           class="form-control"
-                           placeholder="Search products..."
-                           @bind="SearchText"
-                           @bind:event="oninput" />
+                    @ErrorMessage
 
-                    @if (!string.IsNullOrWhiteSpace(SearchText))
+                </div>
+            }
+
+
+            <!-- LOADING -->
+            @if (IsLoading)
+            {
+                <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+
+                    <div class="text-center">
+
+                        <div class="spinner-border text-success mb-3">
+                        </div>
+
+                        <div class="text-muted">
+                            Loading POS...
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+            else
+            {
+                <!-- PRODUCT GRID -->
+                <div class="flex-grow-1 overflow-auto p-2 p-lg-3">
+
+                    <div class="row g-2 g-md-3">
+
+                        @foreach (var product in FilteredProducts)
+                        {
+                            <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
+
+                                <!-- WHOLE PRODUCT IS CLICKABLE -->
+                                <button type="button"
+                                        class="btn p-0 w-100 h-100 text-start border rounded-3 bg-white shadow-sm overflow-hidden d-flex flex-column"
+                                        @onclick="() => ProductClicked(product)">
+
+                                    <!-- IMAGE -->
+                                    <div class="bg-light d-flex align-items-center justify-content-center flex-shrink-0">
+
+                                        @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                        {
+                                            <img src="@product.ImageUrl"
+                                                 alt="@product.Name"
+                                                 class="w-100 h-100"
+                                                 style="object-fit:cover;" />
+                                        }
+                                        else
+                                        {
+                                            <span class="fs-1">
+                                                🍵
+                                            </span>
+                                        }
+
+                                    </div>
+
+
+                                    <!-- PRODUCT INFO -->
+                                    <div class="p-2 p-lg-3 d-flex flex-column flex-grow-1">
+
+                                        <div class="fw-normal text-center text-dark">
+
+                                            @product.Name
+
+                                        </div>
+
+
+                                        <div class="mt-auto pt-2 pt-lg-3">
+
+                                            <span class="fw-bold fs-5 text-success">
+
+                                                ₱@GetProductPrice(product).ToString("N2")
+
+                                            </span>
+
+                                        </div>
+
+                                    </div>
+
+                                </button>
+
+                            </div>
+                        }
+
+                    </div>
+
+
+                    @if (!FilteredProducts.Any())
+                    {
+                        <div class="h-100 d-flex align-items-center justify-content-center">
+
+                            <div class="text-center text-muted">
+
+                                <div class="fs-1 mb-3">
+                                    🔍
+                                </div>
+
+                                <h5>
+                                    No products found
+                                </h5>
+
+                                <div>
+                                    Try another search or category.
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+
+
+        <!-- =========================================================
+             CURRENT ORDER
+        ========================================================== -->
+
+        <div class="col-12 col-lg-4 bg-white border-top border-lg-start d-flex flex-column">
+
+            <!-- CART HEADER -->
+            <div class="p-3 border-bottom">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <h5 class="mb-0">
+                            Current Order
+                        </h5>
+
+                        <small class="text-muted">
+                            @CartItemCount item(s)
+                        </small>
+
+                    </div>
+
+
+                    @if (Cart.Any())
                     {
                         <button type="button"
-                                class="btn btn-outline-secondary"
-                                @onclick="ClearSearch">
+                                class="btn btn-sm btn-outline-danger"
+                                @onclick="ClearCart">
 
-                            ×
+                            Clear
 
                         </button>
                     }
@@ -103,407 +293,242 @@
 
             </div>
 
-        </div>
 
+            <!-- CART -->
+            <div class="flex-grow-1 overflow-auto">
 
-        <!-- ERROR -->
-        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-        {
-            <div class="alert alert-danger rounded-0 mb-0">
+                @if (!Cart.Any())
+                {
+                    <div class="h-100 d-flex align-items-center justify-content-center text-center p-4">
 
-                @ErrorMessage
+                        <div>
 
-            </div>
-        }
+                            <div class="fs-1 mb-3">
+                                🛒
+                            </div>
 
+                            <h6>
+                                No items yet
+                            </h6>
 
-        <!-- LOADING -->
-        @if (IsLoading)
-        {
-            <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                            <small class="text-muted">
+                                Select a product to add it to the order.
+                            </small>
 
-                <div class="text-center">
+                        </div>
 
-                    <div class="spinner-border text-success mb-3">
                     </div>
-
-                    <div class="text-muted">
-                        Loading POS...
-                    </div>
-
-                </div>
-
-            </div>
-        }
-        else
-        {
-            <!-- PRODUCT GRID -->
-            <div class="flex-grow-1 overflow-auto p-3">
-
-                <div class="row g-3">
-
-                    @foreach (var product in FilteredProducts)
+                }
+                else
+                {
+                    @foreach (var item in Cart)
                     {
-                        <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
+                        <div class="p-3 border-bottom">
 
-                            <!-- WHOLE PRODUCT IS CLICKABLE -->
-                            <button type="button"
-                                    class="btn p-0 w-100 h-100 text-start border rounded-3 bg-white shadow-sm overflow-hidden d-flex flex-column"
-                                    @onclick="() => ProductClicked(product)">
+                            <!-- PRODUCT -->
+                            <div class="d-flex justify-content-between gap-2">
 
-                                <!-- IMAGE -->
-                                <div class="bg-light d-flex align-items-center justify-content-center flex-shrink-0">
+                                <div class="flex-grow-1">
 
-                                    @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                    <div class="fw-semibold">
+                                        @item.Product.Name
+                                    </div>
+
+
+                                    <!-- MODIFIERS -->
+                                    @if (item.SelectedModifiers.Any())
                                     {
-                                        <img src="@product.ImageUrl"
-                                             alt="@product.Name"
-                                             class="w-100 h-100"
-                                             style="object-fit:cover;" />
+                                        <div class="mt-1">
+
+                                            @foreach (var modifier in item.SelectedModifiers)
+                                            {
+                                                <small class="text-muted d-block">
+
+                                                    @modifier.ModifierName:
+                                                    @modifier.OptionName
+
+                                                    @if (modifier.Price > 0)
+                                                    {
+                                                        <span>
+                                                            (+₱@modifier.Price.ToString("N2"))
+                                                        </span>
+                                                    }
+
+                                                </small>
+                                            }
+
+                                        </div>
+                                    }
+
+                                </div>
+
+
+                                <div class="text-muted">
+
+                                    ₱@item.UnitPrice.ToString("N2")
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- QUANTITY -->
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+
+                                <div class="btn-group">
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @onclick="() => DecreaseQuantity(item)">
+
+                                        −
+
+                                    </button>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            disabled>
+
+                                        @item.Quantity
+
+                                    </button>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @onclick="() => IncreaseQuantity(item)">
+
+                                        +
+
+                                    </button>
+
+                                </div>
+
+
+                                <div class="fw-bold">
+
+                                    ₱@((item.UnitPrice * item.Quantity).ToString("N2"))
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- DISCOUNT -->
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+
+                                <button type="button"
+                                        class="btn btn-link btn-sm p-0 text-decoration-none d-flex align-items-center gap-1"
+                                        @onclick="() => OpenDiscountModal(item)">
+
+                                    🏷️
+
+                                    @if (item.Discount is not null)
+                                    {
+                                        <span class="badge bg-success-subtle text-success">
+                                            @item.Discount.Name
+                                        </span>
                                     }
                                     else
                                     {
-                                        <span class="fs-1">
-                                            🍵
-                                        </span>
+                                        <small class="text-muted">
+                                            Add discount
+                                        </small>
                                     }
 
-                                </div>
-
-
-                                <!-- PRODUCT INFO -->
-                                <div class="p-3 d-flex flex-column flex-grow-1">
-
-                                    <div class="fw-normal text-center text-dark">
-
-                                        @product.Name
-
-                                    </div>
-
-
-                                    <div class="mt-auto pt-3">
-
-                                        <span class="fw-bold fs-5 text-success">
-
-                                            ₱@GetProductPrice(product).ToString("N2")
-
-                                        </span>
-
-                                    </div>
-
-                                </div>
-
-                            </button>
-
-                        </div>
-                    }
-
-                </div>
-
-
-                @if (!FilteredProducts.Any())
-                {
-                    <div class="h-100 d-flex align-items-center justify-content-center">
-
-                        <div class="text-center text-muted">
-
-                            <div class="fs-1 mb-3">
-                                🔍
-                            </div>
-
-                            <h5>
-                                No products found
-                            </h5>
-
-                            <div>
-                                Try another search or category.
-                            </div>
-
-                        </div>
-
-                    </div>
-                }
-
-            </div>
-        }
-
-    </div>
-
-
-    <!-- =========================================================
-         RIGHT: CURRENT ORDER
-    ========================================================== -->
-
-    <div class="bg-white border-start d-flex flex-column"
-         style="width:390px; min-width:390px;">
-
-        <!-- CART HEADER -->
-        <div class="p-3 border-bottom">
-
-            <div class="d-flex justify-content-between align-items-center">
-
-                <div>
-
-                    <h5 class="mb-0">
-                        Current Order
-                    </h5>
-
-                    <small class="text-muted">
-                        @CartItemCount item(s)
-                    </small>
-
-                </div>
-
-
-                @if (Cart.Any())
-                {
-                    <button type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            @onclick="ClearCart">
-
-                        Clear
-
-                    </button>
-                }
-
-            </div>
-
-        </div>
-
-
-        <!-- CART -->
-        <div class="flex-grow-1 overflow-auto">
-
-            @if (!Cart.Any())
-            {
-                <div class="h-100 d-flex align-items-center justify-content-center text-center p-4">
-
-                    <div>
-
-                        <div class="fs-1 mb-3">
-                            🛒
-                        </div>
-
-                        <h6>
-                            No items yet
-                        </h6>
-
-                        <small class="text-muted">
-                            Select a product to add it to the order.
-                        </small>
-
-                    </div>
-
-                </div>
-            }
-            else
-            {
-                @foreach (var item in Cart)
-                {
-                    <div class="p-3 border-bottom">
-
-                        <!-- PRODUCT -->
-                        <div class="d-flex justify-content-between gap-2">
-
-                            <div class="flex-grow-1">
-
-                                <div class="fw-semibold">
-                                    @item.Product.Name
-                                </div>
-
-
-                                <!-- MODIFIERS -->
-                                @if (item.SelectedModifiers.Any())
-                                {
-                                    <div class="mt-1">
-
-                                        @foreach (var modifier in item.SelectedModifiers)
-                                        {
-                                            <small class="text-muted d-block">
-
-                                                @modifier.ModifierName:
-                                                @modifier.OptionName
-
-                                                @if (modifier.Price > 0)
-                                                {
-                                                    <span>
-                                                        (+₱@modifier.Price.ToString("N2"))
-                                                    </span>
-                                                }
-
-                                            </small>
-                                        }
-
-                                    </div>
-                                }
-
-                            </div>
-
-
-                            <div class="text-muted">
-
-                                ₱@item.UnitPrice.ToString("N2")
-
-                            </div>
-
-                        </div>
-
-
-                        <!-- QUANTITY -->
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-
-                            <div class="btn-group">
-
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        @onclick="() => DecreaseQuantity(item)">
-
-                                    −
-
                                 </button>
-
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        disabled>
-
-                                    @item.Quantity
-
-                                </button>
-
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        @onclick="() => IncreaseQuantity(item)">
-
-                                    +
-
-                                </button>
-
-                            </div>
-
-
-                            <div class="fw-bold">
-
-                                ₱@((item.UnitPrice * item.Quantity).ToString("N2"))
-
-                            </div>
-
-                        </div>
-
-
-                        <!-- DISCOUNT -->
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-
-                            <button type="button"
-                                    class="btn btn-link btn-sm p-0 text-decoration-none d-flex align-items-center gap-1"
-                                    @onclick="() => OpenDiscountModal(item)">
-
-                                🏷️
 
                                 @if (item.Discount is not null)
                                 {
-                                    <span class="badge bg-success-subtle text-success">
-                                        @item.Discount.Name
-                                    </span>
-                                }
-                                else
-                                {
-                                    <small class="text-muted">
-                                        Add discount
+                                    <small class="text-success">
+                                        -₱@GetItemDiscountAmount(item).ToString("N2")
                                     </small>
                                 }
 
-                            </button>
-
-                            @if (item.Discount is not null)
-                            {
-                                <small class="text-success">
-                                    -₱@GetItemDiscountAmount(item).ToString("N2")
-                                </small>
-                            }
+                            </div>
 
                         </div>
-
-                    </div>
+                    }
                 }
-            }
-
-        </div>
-
-
-        <!-- =====================================================
-             TOTAL
-        ====================================================== -->
-
-        <div class="border-top p-3">
-
-            <div class="d-flex justify-content-between mb-2">
-
-                <span class="text-muted">
-                    Subtotal
-                </span>
-
-                <span>
-                    ₱@Subtotal.ToString("N2")
-                </span>
 
             </div>
 
 
-            <div class="d-flex justify-content-between mb-2">
+            <!-- =====================================================
+                 TOTAL
+            ====================================================== -->
 
-                <span class="text-muted">
-                    Discount
-                </span>
+            <div class="border-top p-3">
 
-                <span>
-                    -₱@Discount.ToString("N2")
-                </span>
+                <div class="d-flex justify-content-between mb-2">
+
+                    <span class="text-muted">
+                        Subtotal
+                    </span>
+
+                    <span>
+                        ₱@Subtotal.ToString("N2")
+                    </span>
+
+                </div>
+
+
+                <div class="d-flex justify-content-between mb-2">
+
+                    <span class="text-muted">
+                        Discount
+                    </span>
+
+                    <span>
+                        -₱@Discount.ToString("N2")
+                    </span>
+
+                </div>
+
+
+                <div class="d-flex justify-content-between mb-3">
+
+                    <span class="text-muted">
+                        Tax
+                    </span>
+
+                    <span>
+                        ₱@Tax.ToString("N2")
+                    </span>
+
+                </div>
+
+
+                <div class="d-flex justify-content-between border-top pt-3 mb-3">
+
+                    <span class="fs-5 fw-bold">
+                        Total
+                    </span>
+
+                    <span class="fs-5 fw-bold text-success">
+
+                        ₱@Total.ToString("N2")
+
+                    </span>
+
+                </div>
+
+
+                <button type="button"
+                        class="btn btn-success btn-lg w-100 d-flex justify-content-between align-items-center"
+                        disabled="@(!Cart.Any())"
+                        @onclick="OpenPayment">
+
+                    <span>
+                        Charge
+                    </span>
+
+                    <strong>
+                        ₱@Total.ToString("N2")
+                    </strong>
+
+                </button>
 
             </div>
-
-
-            <div class="d-flex justify-content-between mb-3">
-
-                <span class="text-muted">
-                    Tax
-                </span>
-
-                <span>
-                    ₱@Tax.ToString("N2")
-                </span>
-
-            </div>
-
-
-            <div class="d-flex justify-content-between border-top pt-3 mb-3">
-
-                <span class="fs-5 fw-bold">
-                    Total
-                </span>
-
-                <span class="fs-5 fw-bold text-success">
-
-                    ₱@Total.ToString("N2")
-
-                </span>
-
-            </div>
-
-
-            <button type="button"
-                    class="btn btn-success btn-lg w-100 d-flex justify-content-between align-items-center"
-                    disabled="@(!Cart.Any())"
-                    @onclick="OpenPayment">
-
-                <span>
-                    Charge
-                </span>
-
-                <strong>
-                    ₱@Total.ToString("N2")
-                </strong>
-
-            </button>
 
         </div>
 
@@ -939,7 +964,7 @@
          tabindex="-1"
          style="background-color:rgba(0,0,0,.5);">
 
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
 
             <div class="modal-content">
 
@@ -975,9 +1000,7 @@
                         </small>
 
                         <div class="display-5 fw-bold text-success">
-
                             ₱@Total.ToString("N2")
-
                         </div>
 
                     </div>
@@ -1134,6 +1157,383 @@
 
 @code {
 
+    private string GenerateProductCode(Product product)
+    {
+        var productName = product.Name;
+        if (string.IsNullOrWhiteSpace(productName))
+        return string.Empty;
+
+    var words = productName
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+    if (words.Length == 0)
+        return string.Empty;
+
+    // Build the normal code
+    string GenerateCode(string[] parts)
+    {
+        if (parts.Length == 1)
+            return parts[0][0].ToString().ToUpper();
+
+        string code = parts[0][0].ToString().ToUpper();
+
+        for (int i = 1; i < parts.Length - 1; i++)
+        {
+            code += parts[i]
+                .Substring(0, Math.Min(2, parts[i].Length))
+                .ToLower();
+        }
+
+        code += parts[^1][0].ToString().ToUpper();
+
+        // Capitalize every word abbreviation
+        var result = parts[0][0].ToString().ToUpper();
+
+        for (int i = 1; i < parts.Length - 1; i++)
+        {
+            result += parts[i][0].ToString().ToUpper();
+
+            if (parts[i].Length > 1)
+                result += parts[i][1].ToString().ToLower();
+        }
+
+        result += parts[^1][0].ToString().ToUpper();
+
+        return result;
+    }
+
+    string code = GenerateCode(words);
+
+    var existingCodes = Data.Products
+        .Select(x =>
+        {
+            var existingWords = x.Name
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            return GenerateCode(existingWords);
+        })
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    if (!existingCodes.Contains(code))
+        return code;
+
+    // If there is a conflict, progressively use
+    // more characters from the middle words.
+    for (int length = 3; length <= 10; length++)
+    {
+        string newCode = words[0][0].ToString().ToUpper();
+
+        for (int i = 1; i < words.Length - 1; i++)
+        {
+            int take = Math.Min(length, words[i].Length);
+
+            newCode += words[i]
+                .Substring(0, take)
+                .ToLower();
+
+            newCode = newCode[..^(take)] +
+                      words[i][0].ToString().ToUpper() +
+                      newCode[^Math.Min(take - 1, newCode.Length)..];
+        }
+
+        newCode += words[^1][0].ToString().ToUpper();
+
+        if (!existingCodes.Contains(newCode))
+            return newCode;
+    }
+
+    // If absolutely no unique abbreviation can be generated,
+    // return the original code rather than adding a number.
+    return code;
+    }
+    
+    private void PrintReceipt(string printerName)
+    {
+        string divider = "-------------------------------";
+        
+    using PrintDocument document = new PrintDocument();
+
+    document.PrinterSettings.PrinterName = printerName;
+
+    if (!document.PrinterSettings.IsValid)
+    {
+        throw new Exception($"Printer not found: {printerName}");
+    }
+
+    document.PrintPage += (sender, e) =>
+    {
+        using Font font = new Font("Consolas", 9);
+        using Font boldFont = new Font("Consolas", 9, FontStyle.Bold);
+        using Font titleFont = new Font("Consolas", 14, FontStyle.Bold);
+        using SolidBrush brush = new SolidBrush(Color.Black);
+
+        float y = 10;
+
+        // =========================================================
+        // STORE
+        // =========================================================
+
+        var store = ((CustomAuthStateProvider)AuthenticationStateProvider)
+            .GetStore(Data.Stores);
+
+        string storeName = store?.Name ?? "Store";
+
+        e.Graphics.DrawString(
+            storeName,
+            titleFont,
+            brush,
+            10,
+            y
+        );
+
+        y += 30;
+
+
+        // =========================================================
+        // DATE / ORDER
+        // =========================================================
+
+        e.Graphics.DrawString(
+            $"Order #{OrderNumber}",
+            font,
+            brush,
+            10,
+            y
+        );
+
+        y += 18;
+
+        e.Graphics.DrawString(
+            DateTime.Now.ToString("MMM dd, yyyy hh:mm tt"),
+            font,
+            brush,
+            10,
+            y
+        );
+
+        y += 25;
+
+
+        // =========================================================
+        // DIVIDER
+        // =========================================================
+
+        e.Graphics.DrawString(
+            divider,
+            font,
+            brush,
+            10,
+            y
+        );
+
+        y += 20;
+
+
+        // =========================================================
+        // COLUMN POSITIONS
+        // =========================================================
+        string columnString = "ITEM|DIS|PRI|QUA|TOT";
+        string[] columns = columnString.Split('|');
+
+        int totalWidth = divider.Length;
+
+        columns[0] = FormatColumn(columns[0], (int)(totalWidth * 0.28));
+        columns[1] = FormatColumn(columns[1], (int)(totalWidth * 0.15));
+        columns[2] = FormatColumn(columns[2], (int)(totalWidth * 0.10));
+        columns[3] = FormatColumn(columns[3], (int)(totalWidth * 0.10));
+        columns[4] = FormatColumn(columns[4], (int)(totalWidth * 0.27));
+        
+        float codeX = 10;
+
+
+        // =========================================================
+        // HEADER
+        // =========================================================
+        string row = "";
+        foreach (var column in columns)
+        {
+            row += column;
+        }
+        
+        e.Graphics.DrawString(
+            row,
+            boldFont,
+            brush,
+            codeX,
+            y
+            );
+        
+
+        y += 20;
+
+
+        // =========================================================
+        // ITEMS
+        // =========================================================
+        
+        foreach (var cartItem in Cart)
+        {
+            row = string.Empty;
+            string code =
+                GenerateProductCode(cartItem.Product);
+
+            string discount =
+                cartItem.Discount is not null
+                    ? $"{cartItem.Discount.Value}%"
+                    : "";
+
+            if (cartItem.Discount is not null && cartItem.Discount.DiscountType == DiscountType.FixedAmount)
+                discount = $"-{cartItem.Discount.Value}";
+
+            string price =
+                cartItem.UnitPrice.ToString("N2");
+
+            string quantity =
+                MathF.Round(cartItem.Quantity).ToString();
+
+            string itemTotal =
+                (cartItem.UnitPrice * cartItem.Quantity)
+                .ToString("N2");
+            
+            
+            string[] newRow = new[] { code, discount, price, quantity, itemTotal };
+            string rowText = "";
+            for (int i = 0; i < newRow.Length; i++)
+            {
+                newRow[i] = FormatColumn(newRow[i], columns[i].Length);
+                rowText += newRow[i];
+            }
+
+            // PRODUCT CODE
+            e.Graphics.DrawString(
+                rowText,
+                font,
+                brush,
+                codeX,
+                y
+            );
+
+            y += 20;
+        }
+
+
+        // =========================================================
+        // DIVIDER
+        // =========================================================
+
+        y += 5;
+    
+        e.Graphics.DrawString(
+            divider,
+            font,
+            brush,
+            10,
+            y
+        );
+
+        y += 20;
+
+
+        // =========================================================
+        // SUBTOTAL
+        // =========================================================
+        e.Graphics.DrawString(
+            LeftRightFormat(("SUBTOTAL:"), $"₱{Subtotal:N2}", totalWidth),
+            font,
+            brush,
+            10,
+            y
+        );
+
+        y += 20;
+
+
+        // =========================================================
+        // DISCOUNT
+        // =========================================================
+
+        e.Graphics.DrawString(
+            LeftRightFormat("DISCOUNT:", $"-₱{Discount:N2}", totalWidth),
+            font,
+            brush,
+            10,
+            y
+        );
+
+        y += 20;
+
+
+        // =========================================================
+        // TAX
+        // =========================================================
+
+        // e.Graphics.DrawString(
+        //     "TAX:",
+        //     font,
+        //     brush,
+        //     10,
+        //     y
+        // );
+        //
+        // e.Graphics.DrawString(
+        //     $"₱{Tax:N2}",
+        //     font,
+        //     brush,
+        //     totalX,
+        //     y
+        // );
+        //
+        // y += 25;
+
+
+        // =========================================================
+        // TOTAL
+        // =========================================================
+
+        e.Graphics.DrawString(
+            LeftRightFormat("TOTAL:", $"₱{Total:N2}", totalWidth),
+            boldFont,
+            brush,
+            10,
+            y
+        );
+
+        y += 30;
+
+
+        // =========================================================
+        // FOOTER
+        // =========================================================
+
+        e.Graphics.DrawString(
+            "Thank you!",
+            boldFont,
+            brush,
+            10,
+            y
+        );
+    };
+
+    document.Print();
+}
+
+    private string LeftRightFormat(string left, string right, int totalWidth)
+    {
+        int spaces = totalWidth - left.Length - right.Length;
+        return left + new string(' ', spaces) + right;
+    }
+    
+    private string FormatColumn(string value, int width)
+    {
+        if (value.Length > width)
+        {
+            value = value.Substring(0, width - 1);
+            return value + " ";
+        }
+
+        return value.PadRight(width);
+    }
+
     // =========================================================
     // STATE
     // =========================================================
@@ -1217,6 +1617,8 @@
         IsLoading = true;
         ErrorMessage = "";
 
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+        
         try
         {
             await Data.LoadAllAsync();
@@ -1241,6 +1643,11 @@
             IsLoading = false;
         }
     }
+    
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
 
 
     // =========================================================
@@ -1249,18 +1656,9 @@
 
     private async Task ResolveCurrentStoreAsync()
     {
-        // =========================================================
-        // TEMPORARY:
-        // Cashier currently uses the FIRST ACTIVE STORE.
-        //
-        // TODO:
-        // Change this later to get the store assigned to the
-        // currently logged-in cashier.
-        // =========================================================
 
-        var activeStore =
-            Data.Stores
-                .FirstOrDefault(x => x.Active);
+        var authProvider = (CustomAuthStateProvider)AuthenticationStateProvider;
+        var activeStore = authProvider.GetStore(Data.Stores);
 
         if (activeStore is not null)
         {
@@ -1269,6 +1667,12 @@
         }
 
         await Task.CompletedTask;
+    }
+    
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        await ResolveCurrentStoreAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
 
@@ -2185,9 +2589,6 @@
                 PaymentTypeId =
                     SelectedPaymentType.Id,
 
-                PaymentTypeName =
-                    SelectedPaymentType.Name,
-
                 Amount =
                     Total,
 
@@ -2218,6 +2619,10 @@
         Data.TransactionPayments.Add(
             savedPayment);
 
+        if (!string.IsNullOrWhiteSpace(SelectedPrinterName))
+        {
+            PrintReceipt(SelectedPrinterName);
+        }
 
         // =========================================================
         // RESET POS
@@ -2273,5 +2678,12 @@
 
         public decimal Price { get; set; }
     }
+    
+    private string SelectedPrinterName = "";
 
+    private List<string> AvailablePrinters =>
+        PrinterSettings.InstalledPrinters
+            .Cast<string>()
+            .OrderBy(x => x)
+            .ToList();
 }

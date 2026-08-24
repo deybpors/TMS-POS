@@ -13,18 +13,10 @@
     <!-- ========================================================= -->
     <!-- HEADER -->
     <!-- ========================================================= -->
-
-    <div class="page-header">
-
-        <div>
-            <h1>Sales Summary</h1>
-            <p>Review your sales performance for a selected period.</p>
-        </div>
-
-    </div>
+    <PageHeader Head="Sales Summary" SubHead="Review your sales performance for a selected period." />
 
 
-    <!-- ========================================================= -->
+<!-- ========================================================= -->
     <!-- FILTER BAR -->
     <!-- ========================================================= -->
 
@@ -79,27 +71,6 @@
             {
                 <option value="@store.Id">
                     @store.Name
-                </option>
-            }
-
-        </select>
-
-
-        <!-- EMPLOYEE -->
-
-        <select class="form-select"
-                style="width: 170px;"
-                @bind="SelectedEmployee"
-                @bind:after="FiltersChanged">
-
-            <option value="">
-                All employees
-            </option>
-
-            @foreach (var employee in Employees)
-            {
-                <option value="@employee.Id">
-                    @employee.Name
                 </option>
             }
 

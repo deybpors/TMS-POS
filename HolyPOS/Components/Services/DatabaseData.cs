@@ -988,14 +988,16 @@ public decimal GetItemUnitPrice(TransactionItem item)
 
     foreach (var modifier in modifiers)
     {
-        var option =
-            ModifierOptions.FirstOrDefault(
-                x => x.Id == modifier.OptionId);
-
-
-        if (option is not null)
+        if (modifier.OptionId.HasValue)
         {
-            unitPrice += option.Price;
+            var option =
+                ModifierOptions.FirstOrDefault(
+                    x => x.Id == modifier.OptionId.Value);
+
+            if (option is not null)
+            {
+                unitPrice += option.Price;
+            }
         }
     }
 

@@ -5,7 +5,8 @@
 @using HolyPOS.Components.Models
 @using HolyPOS.Components.Services
 @using HolyPOS.Components.Layout
-
+@implements IDisposable
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DatabaseData Data
 
 <PageTitle>Transactions</PageTitle>
@@ -15,100 +16,55 @@
     <!-- ===================================================== -->
     <!-- HEADER -->
     <!-- ===================================================== -->
-
-    <div class="page-header">
-        <div>
-            <h1>Transactions</h1>
-            <p>View your sales and transaction history.</p>
-        </div>
-    </div>
+    <PageHeader Head="Transactions" SubHead="View your sales and transaction history." />
 
 
     <!-- ===================================================== -->
     <!-- FILTERS -->
     <!-- ===================================================== -->
 
-    <div class="admin-card mb-4">
-        <div class="p-4">
-            <div class="row g-3 align-items-end">
+    <div class="d-flex align-items-center gap-2 mb-3 w-100">
+        <div style="flex-shrink: 0;">
+            <DateRangePicker
+                StartDate="@DateFrom"
+                EndDate="@DateTo"
+                OnDateRangeChanged="DateRangeChanged"/>
+        </div>
+        <!-- STORE -->
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <select class="form-select" @bind="SelectedStore" @bind:after="FiltersChanged">
+                    <option value="">All stores</option>
+                    @foreach (var store in Data.Stores.Where(x => x.Active).OrderBy(x => x.Name))
+                    {
+                        <option value="@store.Id">@store.Name</option>
+                    }
+                </select>
+            </Authorized>
+        </AuthorizeView>
 
-                <DateRangePicker
-                    StartDate="@DateFrom"
-                    EndDate="@DateTo"
-                    OnDateRangeChanged="DateRangeChanged" />
+        <!-- TYPE -->
+            <select class="form-select" @bind="SelectedType" @bind:after="FiltersChanged">
+               <option value="">All transactions</option>
+               @foreach (var type in Enum.GetValues(typeof(Transaction.TransactionType)))
+               {
+                   <option value="@type.ToString().ToLower()">@type.ToString()</option>
+               }
+            </select>
 
-                <!-- STORE -->
-                <AuthorizeView Roles="Admin">
-                    <Authorized>
-                        <div class="col-md-2">
-                            <label class="form-label text-muted small">Store</label>
-                            <select class="form-select" @bind="SelectedStore" @bind:after="FiltersChanged">
-                                <option value="">All stores</option>
-                                @foreach (var store in Data.Stores.Where(x => x.Active).OrderBy(x => x.Name))
-                                {
-                                    <option value="@store.Id">@store.Name</option>
-                                }
-                            </select>
-                        </div>
-                    </Authorized>
-                </AuthorizeView>
-
-                <!-- TYPE -->
-                <div class="col-md-2">
-                    <label class="form-label text-muted small">Type</label>
-                    <select class="form-select" @bind="SelectedType" @bind:after="FiltersChanged">
-                        <option value="">All transactions</option>
-                        <option value="sale">Sales</option>
-                        <option value="refund">Refunds</option>
-                        <option value="edited">Edited</option>
-                    </select>
-                </div>
-
-                <!-- TIME -->
-                <div class="col-md-2">
-                    <label class="form-label text-muted small">Time</label>
-                    <select class="form-select" @bind="SelectedTime" @bind:after="FiltersChanged">
+        <!-- TIME -->
+        <select class="form-select" @bind="SelectedTime" @bind:after="FiltersChanged">
                         <option value="All day">All day</option>
                         <option value="Morning">Morning</option>
                         <option value="Afternoon">Afternoon</option>
                         <option value="Evening">Evening</option>
                     </select>
-                </div>
 
-                <!-- SEARCH -->
-                <div class="col-md-2">
-                    <label class="form-label text-muted small">Search</label>
-                    <input type="search" class="form-control" placeholder="Receipt, store, item..." @bind="Search" @bind:event="oninput" @bind:after="FiltersChanged" />
-                </div>
-            </div>
-        </div>
+        <!-- SEARCH -->
+            <input type="search" class="form-control" placeholder="Receipt, store, item..." @bind="Search" @bind:event="oninput" @bind:after="FiltersChanged" />
+                
     </div>
-
-
-    <!-- ===================================================== -->
-    <!-- SUMMARY -->
-    <!-- ===================================================== -->
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="admin-card p-4">
-                <div class="text-muted small">Sales</div>
-                <div class="fs-3 fw-semibold">@SalesCount</div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="admin-card p-4">
-                <div class="text-muted small">Refunds</div>
-                <div class="fs-3 fw-semibold">@RefundCount</div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="admin-card p-4">
-                <div class="text-muted small">Net Sales</div>
-                <div class="fs-3 fw-semibold">₱@NetSales.ToString("N2")</div>
-            </div>
-        </div>
-    </div>
+    
 
 
     <!-- ===================================================== -->
@@ -766,6 +722,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+        
         IsLoading = true;
         try
         {
@@ -781,9 +739,23 @@
             IsLoading = false;
         }
     }
+    
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        BuildTransactions();
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
+    
 private HashSet<Guid> TransactionsWithRefundedLatestReceipt = new();
     private void BuildTransactions()
     {
+        var authProvider = (CustomAuthStateProvider)AuthenticationStateProvider;
+        
         SupersededTransactionIds = Data.Transactions
                 .Where(x => x.Type == Transaction.TransactionType.Edited && x.OriginalTransactionId.HasValue)
                 .Select(x => x.OriginalTransactionId!.Value)
@@ -803,9 +775,15 @@ private HashSet<Guid> TransactionsWithRefundedLatestReceipt = new();
         AllTransactions = Data.Transactions
                 .Select(transaction =>
                 {
-                    var store = transaction.StoreId.HasValue ? Data.Stores.FirstOrDefault(x => x.Id == transaction.StoreId.Value) : null;
+                    var store = transaction.StoreId.HasValue ? Data.Stores.FirstOrDefault(x => x.Id == transaction.StoreId) : null;
+                
+                    if (authProvider.IsRole("User"))
+                    {
+                        store = transaction.StoreId.HasValue ? Data.Stores.FirstOrDefault(x => x.Id == authProvider.GetStoreId(Data.Stores).Value) : null;
+                    }
+
                     var items = Data.TransactionItems.Where(x => x.TransactionId == transaction.Id).ToList();
-                    return new TransactionRow { Transaction = transaction, StoreName = store?.Name ?? "Unknown store", Items = items };
+                    return new TransactionRow { Transaction = transaction, StoreName = store.Name, Items = items };
                 })
                 .OrderByDescending(x => x.Transaction.TransactionDate)
                 .ToList();
@@ -1176,7 +1154,6 @@ private HashSet<Guid> TransactionsWithRefundedLatestReceipt = new();
                 Id = Guid.NewGuid(),
                 TransactionId = edited.Id,
                 PaymentTypeId = SelectedPaymentType.Id,
-                PaymentTypeName = SelectedPaymentType.Name,
                 Amount = Total,
                 CashReceived = SelectedPaymentType.IsCash ? CashReceived : 0,
                 ChangeAmount = SelectedPaymentType.IsCash ? Change : 0

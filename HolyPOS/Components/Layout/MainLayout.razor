@@ -1,4 +1,13 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using HolyPOS.Components.Models
+@using HolyPOS.Components.Services
+@using HolyPOS.Components.Misc
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject DatabaseData Data
+@inject NavigationManager Navigation;
 
 <div class="page">
 
@@ -7,18 +16,36 @@
     </div>
 
     <main>
+        
+        <LoadingOverlay IsLoading="@IsLoading"/>
+        @if (IsAuthorized)
+        {
+            <!-- TOP BAR -->
+            <div class="border-bottom px-2 py-2">
 
-        <!-- TOP BAR -->
-        <div class="border-bottom px-4 py-3">
+                <div class="d-flex justify-content-start">
+                    <div class="form-floating">
+                        <select class="form-select h-auto" 
+                                  style="max-width:400px;"
+                                  @bind="CurrentStoreId"
+                                  @bind:after="StoreChanged" id="storeSelection">
+                              @foreach (var store in Data.Stores
+                                  .Where(x => x.Active)
+                                  .OrderBy(x => x.Name))
+                              {
+                                  <option value="@store.Id">
+                                      @store.Name
+                                  </option>
+                              }
+                        </select>
+                      <label for="storeSelection">Current Store</label>
+                    </div>
+                    
 
-    <div class="d-flex justify-content-end">
+                </div>
 
-        @* TODO BUTTON *@
-
-    </div>
-
-</div>
-
+            </div>
+        }
 
         <!-- CONTENT -->
         <article class="content px-4">
@@ -45,3 +72,111 @@
     </a>
 
 </div>
+
+@code
+{
+    public bool IsAuthorized;
+    public bool IsLoading;
+    public Store? CurrentStore;
+    private string CurrentStoreId = "";
+    public bool isPOS;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+        await RefreshAuthState();
+    }
+
+    private async void OnLocationChanged(
+        object? sender,
+        LocationChangedEventArgs e)
+    {
+        var uri =
+            Navigation.ToBaseRelativePath(e.Location);
+
+        isPOS =
+            uri.Equals(
+                "users/pos",
+                StringComparison.OrdinalIgnoreCase) || uri.Equals(
+                    "users/",
+                    StringComparison.OrdinalIgnoreCase);
+        await RefreshAuthState();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        await RefreshAuthState();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshAuthState()
+    {
+        var authProvider =
+            (CustomAuthStateProvider)
+                AuthenticationStateProvider;
+
+        var authState = await authProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.IsInRole("User"))
+        {
+            IsAuthorized = user.Identity is { IsAuthenticated: true };
+        }
+        else
+        {
+            IsAuthorized = user.Identity is { IsAuthenticated: true } && isPOS;
+        }
+
+        if (!IsAuthorized)
+        {
+            // Logged out — clear the store selection so a stale
+            // value isn't left over for the next login.
+            CurrentStore = null;
+            CurrentStoreId = "";
+            return;
+        }
+
+        IsLoading = true;
+
+        try
+        {
+            await Data.LoadAllAsync();
+
+            CurrentStore = authProvider.GetStore(Data.Stores);
+
+            CurrentStoreId =
+                CurrentStore?.Id.ToString() ?? "";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task StoreChanged()
+    {
+        var authProvider =
+            (CustomAuthStateProvider)
+                AuthenticationStateProvider;
+
+        if (Guid.TryParse(CurrentStoreId, out var storeId))
+        {
+            CurrentStore =
+                Data.Stores.FirstOrDefault(x => x.Id == storeId);
+
+            await authProvider.SetStoreAsync(storeId);
+        }
+        else
+        {
+            CurrentStore = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
+}

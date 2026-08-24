@@ -20,88 +20,58 @@
     <!-- ===================================================== -->
     <!-- HEADER -->
     <!-- ===================================================== -->
-
-    <div class="page-header">
-
-        <div>
-            <h1>Cash Counts</h1>
-
-            <p>
-                Review daily cash drawer counts submitted by cashiers.
-            </p>
-        </div>
-
-    </div>
+<PageHeader Head="Cash Counts" SubHead="Review daily cash drawer counts submitted by cashiers." />
 
 
     <!-- ===================================================== -->
     <!-- FILTERS -->
     <!-- ===================================================== -->
 
-    <div class="admin-card mb-4">
 
-        <div class="p-4">
 
-            <div class="row g-3 align-items-end">
-
+        <div class="d-flex align-items-center gap-2 mb-3 w-100">
+        
+            <!-- DATE RANGE -->
+            <div style="flex-shrink: 0;">
                 <DateRangePicker
                     StartDate="@DateFrom"
                     EndDate="@DateTo"
                     OnDateRangeChanged="DateRangeChanged" />
-
-
-                <!-- STORE -->
-
-                <div class="col-md-3">
-
-                    <label class="form-label text-muted small">
-                        Store
-                    </label>
-
-                    <select class="form-select"
-                            @bind="SelectedStore"
-                            @bind:after="FiltersChanged">
-
-                        <option value="">
-                            All stores
-                        </option>
-
-                        @foreach (var store in Data.Stores
-                            .Where(x => x.Active)
-                            .OrderBy(x => x.Name))
-                        {
-                            <option value="@store.Id">
-                                @store.Name
-                            </option>
-                        }
-
-                    </select>
-
-                </div>
-
-
-                <!-- SEARCH -->
-
-                <div class="col-md-3">
-
-                    <label class="form-label text-muted small">
-                        Search
-                    </label>
-
-                    <input type="search"
-                           class="form-control"
-                           placeholder="Sellers..."
-                           @bind="Search"
-                           @bind:event="oninput"
-                           @bind:after="FiltersChanged" />
-
-                </div>
-
             </div>
-
+        
+            <!-- STORE -->
+            <div style="width: 210px; flex-shrink: 0;">
+                <select class="form-select"
+                        @bind="SelectedStore"
+                        @bind:after="FiltersChanged">
+        
+                    <option value="">
+                        All stores
+                    </option>
+        
+                    @foreach (var store in Data.Stores
+                        .Where(x => x.Active)
+                        .OrderBy(x => x.Name))
+                    {
+                        <option value="@store.Id">
+                            @store.Name
+                        </option>
+                    }
+        
+                </select>
+            </div>
+        
+            <!-- SEARCH -->
+            <div class="flex-grow-1">
+                <input type="search"
+                       class="form-control"
+                       placeholder="Search Sellers..."
+                       @bind="Search"
+                       @bind:event="oninput"
+                       @bind:after="FiltersChanged" />
+            </div>
+        
         </div>
-
-    </div>
 
 
     <!-- ===================================================== -->

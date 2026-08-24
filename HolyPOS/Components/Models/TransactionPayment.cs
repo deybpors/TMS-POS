@@ -16,9 +16,6 @@ public class TransactionPayment : BaseModel
     [Column("payment_type_id")]
     public Guid? PaymentTypeId { get; set; }
 
-    [Column("payment_type_name")]
-    public string PaymentTypeName { get; set; } = "";
-
     [Column("amount")]
     public decimal Amount { get; set; }
 

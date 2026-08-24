@@ -10,7 +10,7 @@
 
 @inject IJSRuntime JS
 @inject DatabaseData Data
-
+@using HolyPOS.Components.Layout
 <PageTitle>Modifiers</PageTitle>
 
 
@@ -30,7 +30,8 @@
         <!-- ==================================================== -->
         <!-- TOP CONTROLS -->
         <!-- ==================================================== -->
-
+        <PageHeader Head="Modifiers" SubHead="Add modifiers to products such as size, add-ons, customizations." />
+        
         <div class="d-flex justify-content-between align-items-start p-4">
 
             <button type="button"
@@ -808,13 +809,9 @@
             {
                 var modifier = new Modifier
                 {
-                    Id = Guid.NewGuid(),
-
                     Name = Name,
-
                     AllowMultiple = Multiple
                 };
-
 
                 await Data.SaveModifierAsync(
                     modifier,

@@ -1,12 +1,19 @@
 using System.Security.Claims;
+using HolyPOS.Components.Models;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace HolyPOS.Components.Services;
 
+
 public class CustomAuthStateProvider : AuthenticationStateProvider
 {
     private const string StorageKey = "userSession";
+    private const string LastStoresKey = "lastSelectedStores";
+
+    // Custom claim type for the store — there's no built-in
+    // ClaimTypes entry for this, so we just use a plain string key.
+    public const string StoreIdClaimType = "StoreId";
 
     private ClaimsPrincipal _currentUser =
         new ClaimsPrincipal(new ClaimsIdentity());
@@ -33,16 +40,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
             if (result.Success && result.Value is not null)
             {
-                var identity = new ClaimsIdentity(
-                    new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, result.Value.Username),
-                        new Claim(ClaimTypes.Role, result.Value.Role)
-                    },
-                    "BlazorAuth"
-                );
-
-                _currentUser = new ClaimsPrincipal(identity);
+                _currentUser = BuildPrincipal(result.Value);
             }
         }
         catch (InvalidOperationException)
@@ -55,38 +53,209 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         return new AuthenticationState(_currentUser);
     }
 
-    public async Task Login(string username, string role)
+    public bool IsRole(string role)
     {
-        var claims = new List<Claim>
+        return _currentUser.IsInRole(role);
+    }
+
+    public async Task Login(
+        string username,
+        string role,
+        Guid? storeId = null)
+    {
+        // ============================================================
+        // GET THIS USER'S LAST SELECTED STORE
+        // ============================================================
+
+        if (!storeId.HasValue)
         {
-            new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Role, role)
-        };
+            try
+            {
+                var result =
+                    await _localStorage.GetAsync<
+                        Dictionary<string, Guid>>(
+                        LastStoresKey);
 
-        var identity = new ClaimsIdentity(
-            claims,
-            "BlazorAuth"
-        );
+                if (result.Success &&
+                    result.Value is not null &&
+                    result.Value.TryGetValue(
+                        username,
+                        out var lastStoreId))
+                {
+                    storeId = lastStoreId;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // JS interop unavailable.
+            }
+        }
 
-        _currentUser = new ClaimsPrincipal(identity);
 
-        await _localStorage.SetAsync(StorageKey, new UserSession(username, role));
+        // ============================================================
+        // CREATE SESSION
+        // ============================================================
+
+        var session =
+            new UserSession(
+                username,
+                role,
+                storeId);
+
+        _currentUser =
+            BuildPrincipal(session);
+
+
+        // ============================================================
+        // SAVE ACTIVE SESSION
+        // ============================================================
+
+        await _localStorage.SetAsync(
+            StorageKey,
+            session);
+
 
         NotifyAuthenticationStateChanged(
-            Task.FromResult(new AuthenticationState(_currentUser))
-        );
+            Task.FromResult(
+                new AuthenticationState(
+                    _currentUser)));
+    }
+
+    // Lets a cashier pick/change their store after logging in, without
+    // needing to log out and back in. Keeps username/role intact.
+    public async Task SetStoreAsync(Guid storeId)
+    {
+        var username =
+            _currentUser.Identity?.Name ?? "";
+
+        var role =
+            _currentUser.FindFirst(
+                ClaimTypes.Role)?.Value ?? "";
+
+
+        // ============================================================
+        // GET EXISTING USER → STORE MAP
+        // ============================================================
+
+        Dictionary<string, Guid> lastStores;
+
+        try
+        {
+            var result =
+                await _localStorage.GetAsync<
+                    Dictionary<string, Guid>>(
+                    LastStoresKey);
+
+            lastStores =
+                result.Success &&
+                result.Value is not null
+                    ? result.Value
+                    : new Dictionary<string, Guid>();
+        }
+        catch (InvalidOperationException)
+        {
+            lastStores =
+                new Dictionary<string, Guid>();
+        }
+
+
+        // ============================================================
+        // SAVE THIS USER'S STORE
+        // ============================================================
+
+        lastStores[username] = storeId;
+
+
+        await _localStorage.SetAsync(
+            LastStoresKey,
+            lastStores);
+
+
+        // ============================================================
+        // UPDATE ACTIVE SESSION
+        // ============================================================
+
+        var session =
+            new UserSession(
+                username,
+                role,
+                storeId);
+
+        _currentUser =
+            BuildPrincipal(session);
+
+
+        await _localStorage.SetAsync(
+            StorageKey,
+            session);
+
+
+        NotifyAuthenticationStateChanged(
+            Task.FromResult(
+                new AuthenticationState(
+                    _currentUser)));
     }
 
     public async Task Logout()
     {
-        _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
+        _currentUser =
+            new ClaimsPrincipal(
+                new ClaimsIdentity());
 
-        await _localStorage.DeleteAsync(StorageKey);
+        // ONLY remove the active session.
+        //
+        // Do NOT remove LastStoresKey.
+        await _localStorage.DeleteAsync(
+            StorageKey);
 
         NotifyAuthenticationStateChanged(
-            Task.FromResult(new AuthenticationState(_currentUser))
-        );
+            Task.FromResult(
+                new AuthenticationState(
+                    _currentUser)));
     }
 
-    private record UserSession(string Username, string Role);
+
+    // Returns the current user's stored StoreId claim, or the first store
+// in the given list if none is set (e.g. a fresh login with no store chosen yet).
+    public Guid? GetStoreId(IEnumerable<Store> stores)
+    {
+        var value = _currentUser.FindFirst(StoreIdClaimType)?.Value;
+
+        if (Guid.TryParse(value, out var storeId))
+        {
+            return storeId;
+        }
+
+        return stores.FirstOrDefault()?.Id;
+    }
+    
+    // Same as GetStoreId, but resolves the actual Store object.
+    public Store GetStore(IEnumerable<Store> stores)
+    {
+        var storeId = GetStoreId(stores);
+        return stores.FirstOrDefault(x => x.Id == storeId);
+    }
+    
+    
+
+    private static ClaimsPrincipal BuildPrincipal(UserSession session)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, session.Username),
+            new Claim(ClaimTypes.Role, session.Role)
+        };
+
+        if (session.StoreId.HasValue)
+        {
+            claims.Add(
+                new Claim(StoreIdClaimType, session.StoreId.Value.ToString()));
+        }
+
+        var identity = new ClaimsIdentity(claims, "BlazorAuth");
+
+        return new ClaimsPrincipal(identity);
+    }
+
+    private record UserSession(string Username, string Role, Guid? StoreId);
 }

@@ -11,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject DatabaseData Data
 @inject IJSRuntime JS
+@using HolyPOS.Components.Layout
 
 <PageTitle>Categories</PageTitle>
 
@@ -22,10 +23,7 @@
     <!-- PAGE HEADER -->
     <div class="page-header">
 
-        <div>
-            <h1>Categories</h1>
-            <p>Organize your products.</p>
-        </div>
+        <PageHeader Head="Categories" SubHead="Organizes your products" />
 
         <button type="button"
                 class="btn btn-primary"
@@ -442,7 +440,6 @@
             {
                 var category = new Category
                 {
-                    Id = Guid.NewGuid(),
                     Name = Name,
                     IsActive = true
                 };

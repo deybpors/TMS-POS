@@ -18,6 +18,9 @@ public class Discount : BaseModel
 
     [Column("value")]
     public decimal Value { get; set; }
+
+    [Column("store_ids")] 
+    public List<Guid> StoreIds { get; set; }
 }
 public enum DiscountType
 {

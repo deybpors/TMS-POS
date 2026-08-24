@@ -8,6 +8,7 @@
 @using Microsoft.AspNetCore.Components
 
 @using Microsoft.AspNetCore.Authorization
+@using HolyPOS.Components.Layout
 @attribute [Authorize(Roles = "Admin")]
 
 <PageTitle>Products</PageTitle>
@@ -16,12 +17,12 @@
 <div class="admin-page">
 
     <div class="admin-card">
-
+        <PageHeader Head="Products" SubHead="Add items or products to your business" />
         <!-- TOP BAR -->
         <div class="d-flex justify-content-between align-items-start p-4">
 
             <div class="d-flex align-items-center gap-2">
-
+        
                 <button type="button"
                         class="btn btn-primary"
                         @onclick="AddProduct">

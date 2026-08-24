@@ -15,5 +15,5 @@ public class TransactionItemModifier : BaseModel
     public Guid ModifierId { get; set; }
 
     [Column("option_id")]
-    public Guid OptionId { get; set; }
+    public Guid? OptionId { get; set; }
 }

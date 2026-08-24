@@ -1,5 +1,6 @@
 @page "/admin/discounts"
 @rendermode InteractiveServer
+@using HolyPOS.Components.Layout
 
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Admin")]
@@ -24,7 +25,10 @@
 
 <div class="admin-page">
 
-    <div class="admin-card">
+
+<PageHeader Head="Discounts" SubHead="Add discounts" />
+
+<div class="admin-card">
 
         <!-- ==================================================== -->
         <!-- TOP BAR -->
@@ -657,16 +661,9 @@
 
         Value = discount.Value;
 
-        /*
-         * Store relationships are not being saved yet
-         * unless you have a discount_stores table.
-         *
-         * For now, select all stores when editing.
-         */
-
-        SelectedStoreIds = Data.Stores
-            .Select(x => x.Id)
-            .ToHashSet();
+        SelectedStoreIds =
+            discount.StoreIds?.ToHashSet()
+            ?? new HashSet<Guid>();
 
         ErrorMessage = "";
     }
@@ -847,41 +844,25 @@
             {
                 var discount = new Discount
                 {
-                    Id = Guid.NewGuid(),
-
                     Name = Name,
-
                     DiscountType = Type,
-
                     Value = Value,
-                    
+                    StoreIds = SelectedStoreIds.ToList()
                 };
 
-
-                await Data.SaveDiscountAsync(
-                    discount);
+                await Data.SaveDiscountAsync(discount);
             }
-
-
-            // ====================================================
-            // UPDATE
-            // ====================================================
-
             else
             {
                 Editing.Name = Name;
-
                 Editing.DiscountType = Type;
-
                 Editing.Value = Value;
+                Editing.StoreIds = SelectedStoreIds.ToList();
 
-
-                await Data.SaveDiscountAsync(
-                    Editing);
+                await Data.SaveDiscountAsync(Editing);
             }
 
-
-            // ====================================================
+    // ====================================================
             // SUCCESS
             // ====================================================
 

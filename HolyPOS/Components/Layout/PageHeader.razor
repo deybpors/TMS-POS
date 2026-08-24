@@ -1,0 +1,18 @@
+﻿
+<div class="page-header">
+
+    <div>
+        <h1>@Head</h1>
+
+        <p>
+            @SubHead
+        </p>
+    </div>
+
+</div>
+
+@code {
+    [Parameter] public string Head { get; set; } = "Sample Header";
+    [Parameter]
+    public string SubHead { get; set; } = "Sample SubHeader";
+}

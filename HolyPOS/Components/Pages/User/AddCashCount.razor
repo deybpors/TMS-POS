@@ -7,27 +7,15 @@
 @inject DatabaseData Data
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
-
+@using HolyPOS.Components.Layout
 
 <PageTitle>Cash Count</PageTitle>
 
 
 @if (IsAuthorized)
 {
-<div class="admin-page">
-
-    <div class="page-header">
-
-        <div>
-            <h1>Cash Count</h1>
-
-            <p>
-                Record today's cash drawer count.
-            </p>
-        </div>
-
-    </div>
-
+<div class="admin-page container-fluid">
+    <PageHeader Head="Cash Count" SubHead=" Record today's cash drawer count." />
 
     <div class="card">
 
@@ -66,38 +54,9 @@
                        readonly />
 
             </div>
+        
 
-
-            <!-- STORE -->
-
-            <div class="mb-3">
-
-                <label class="form-label">
-                    Store
-                </label>
-
-                <select class="form-select"
-                        @bind="SelectedStoreId">
-
-                    <option value="">
-                        Select a store
-                    </option>
-
-                    @foreach (var store in Data.Stores
-                        .Where(x => x.Active)
-                        .OrderBy(x => x.Name))
-                    {
-                        <option value="@store.Id">
-                            @store.Name
-                        </option>
-                    }
-
-                </select>
-
-            </div>
-
-
-            <!-- SELLERS -->
+        <!-- SELLERS -->
 
             <div class="mb-3">
 
@@ -283,8 +242,6 @@
     private DateTime Today =
         DateTime.Today;
 
-    private string SelectedStoreId = "";
-
     private string Sellers = "";
 
     private decimal BeginningBalance;
@@ -317,6 +274,27 @@
         }
 
         IsAuthorized = true;
+        
+    // Load database data
+        await Data.LoadAllAsync();
+
+    // Get yesterday
+        var yesterday = DateTime.Today.AddDays(-1);
+
+    // Get yesterday's cash count
+        var yesterdayCashCount =
+            Data.CashCounts
+                .FirstOrDefault(x =>
+                    x.Date.Date == yesterday);
+
+        if (yesterdayCashCount is not null)
+        {
+            BeginningBalance =
+                yesterdayCashCount.CashCountAmount;
+
+            Sellers = yesterdayCashCount.Sellers;
+        }
+        
     }
 
 
@@ -334,23 +312,14 @@
 
     private async Task SaveCashCount()
     {
+        var authState = (CustomAuthStateProvider)AuthenticationStateProvider;
+        
         IsSaved = false;
         ErrorMessage = "";
 
         if (string.IsNullOrWhiteSpace(Sellers))
         {
             ErrorMessage = "Please enter who counted the drawer.";
-            return;
-        }
-
-        Guid? storeId =
-            Guid.TryParse(SelectedStoreId, out var parsedStoreId)
-                ? parsedStoreId
-                : null;
-
-        if (storeId is null)
-        {
-            ErrorMessage = "Please select a store.";
             return;
         }
 
@@ -364,7 +333,7 @@
 
                 Date = Today,
 
-                StoreId = storeId,
+                StoreId = authState.GetStoreId(Data.Stores),
 
                 Sellers = Sellers.Trim(),
 
