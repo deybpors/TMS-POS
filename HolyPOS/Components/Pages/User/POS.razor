@@ -5,15 +5,16 @@
 
 @using HolyPOS.Components.Models
 @using HolyPOS.Components.Services
+@using HolyPOS.Components.Misc
 @using Microsoft.AspNetCore.Components.Authorization
-@using System.Drawing
-@using System.Drawing.Printing
-@using System.Net.Mime
+
+@inject IJSRuntime JS
 @implements IDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DatabaseData Data
 
-
+<LoadingOverlay IsLoading="@IsLoading"
+                Message="@LoadingMessage" />
 <PageTitle>Cashier</PageTitle>
 <div class="min-vh-100 bg-light">
 
@@ -78,27 +79,6 @@
 
                     </div>
 
-                    <!-- PRINTER -->
-                    <div class="w-100 w-lg-auto">
-                    
-                        <select class="form-select"
-                                @bind="SelectedPrinterName">
-                    
-                            <option value="">
-                                No printer
-                            </option>
-                    
-                            @foreach (var printer in AvailablePrinters)
-                            {
-                                <option value="@printer">
-                                    @printer
-                                </option>
-                            }
-                    
-                        </select>
-                    
-                    </div>
-                    
                     <!-- SEARCH -->
                     <div class="input-group flex-grow-1">
 
@@ -141,25 +121,8 @@
             }
 
 
-            <!-- LOADING -->
-            @if (IsLoading)
-            {
-                <div class="flex-grow-1 d-flex align-items-center justify-content-center">
-
-                    <div class="text-center">
-
-                        <div class="spinner-border text-success mb-3">
-                        </div>
-
-                        <div class="text-muted">
-                            Loading POS...
-                        </div>
-
-                    </div>
-
-                </div>
-            }
-            else
+            
+            @if(!IsLoading)
             {
                 <!-- PRODUCT GRID -->
                 <div class="flex-grow-1 overflow-auto p-2 p-lg-3">
@@ -546,7 +509,7 @@
     <div class="modal fade show d-block"
          tabindex="-1"
          style="background-color:rgba(0,0,0,.5);">
-
+        
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
 
             <div class="modal-content">
@@ -970,19 +933,6 @@
 
                 <div class="modal-header">
 
-                    <div>
-
-                        <h5 class="modal-title mb-0">
-                            Payment
-                        </h5>
-
-                        <small class="text-muted">
-                            Complete this order
-                        </small>
-
-                    </div>
-
-
                     <button type="button"
                             class="btn-close"
                             @onclick="ClosePayment">
@@ -992,6 +942,23 @@
 
 
                 <div class="modal-body">
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="printReceipt"
+                                   @bind="EnablePrintReceipt">
+
+                            <label class="form-check-label" for="printReceipt">
+                                Print Receipt
+                            </label>
+                        </div>
+                         <input type="text"
+                           class="form-control"
+                           placeholder="Input Customer Name..."
+                           @bind="CustomerName"/>
+                    </div>
+                   
 
                     <div class="text-center mb-4">
 
@@ -999,7 +966,7 @@
                             Amount due
                         </small>
 
-                        <div class="display-5 fw-bold text-success">
+                        <div class="display-6 fw-bold text-success">
                             ₱@Total.ToString("N2")
                         </div>
 
@@ -1020,21 +987,17 @@
 
                             @foreach (var paymentType in ActivePaymentTypes)
                             {
-                                <div class="col-6">
+                                <div class="col-12">
 
                                     <button type="button"
-                                            class="btn w-100 py-3
-                                            @(SelectedPaymentTypeId == paymentType.Id
-                                                ? "btn-success"
-                                                : "btn-outline-secondary")"
+                                            class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1
+                                            @(SelectedPaymentTypeId == paymentType.Id ? "btn-success" : "btn-outline-secondary")"
+                                            style="height: 50px;"
                                             @onclick="() => SelectPaymentType(paymentType)">
 
-                                        <div class="fs-3">
+                                        <div class="fs-5">
                                             @GetPaymentIcon(paymentType.Name)
-                                        </div>
-
-                                        <div class="fw-semibold">
-                                            @paymentType.Name
+                                            <span class="lh-sm">@paymentType.Name</span>
                                         </div>
 
                                     </button>
@@ -1065,15 +1028,26 @@
                                            min="0"
                                            placeholder="0.00"
                                            @bind="CashReceived"
-                                           @bind:event="oninput" />
+                                           @bind:event="oninput"/>
 
                                 </div>
 
 
                                 <div class="d-flex gap-2 mt-2">
 
-                                    @foreach (var amount in QuickCashAmounts)
+                                    @{
+                                        int buttonCount = 0;
+                                    }
+
+                                    @for (int i = 0; i < QuickCashAmounts.Length && buttonCount < 3; i++)
                                     {
+                                        var amount = QuickCashAmounts[i];
+
+                                        if (amount < Total)
+                                            continue;
+
+                                        buttonCount++;
+
                                         <button type="button"
                                                 class="btn btn-outline-secondary flex-grow-1"
                                                 @onclick="() => CashReceived = amount">
@@ -1156,389 +1130,13 @@
 
 
 @code {
-
-    private string GenerateProductCode(Product product)
-    {
-        var productName = product.Name;
-        if (string.IsNullOrWhiteSpace(productName))
-        return string.Empty;
-
-    var words = productName
-        .Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-    if (words.Length == 0)
-        return string.Empty;
-
-    // Build the normal code
-    string GenerateCode(string[] parts)
-    {
-        if (parts.Length == 1)
-            return parts[0][0].ToString().ToUpper();
-
-        string code = parts[0][0].ToString().ToUpper();
-
-        for (int i = 1; i < parts.Length - 1; i++)
-        {
-            code += parts[i]
-                .Substring(0, Math.Min(2, parts[i].Length))
-                .ToLower();
-        }
-
-        code += parts[^1][0].ToString().ToUpper();
-
-        // Capitalize every word abbreviation
-        var result = parts[0][0].ToString().ToUpper();
-
-        for (int i = 1; i < parts.Length - 1; i++)
-        {
-            result += parts[i][0].ToString().ToUpper();
-
-            if (parts[i].Length > 1)
-                result += parts[i][1].ToString().ToLower();
-        }
-
-        result += parts[^1][0].ToString().ToUpper();
-
-        return result;
-    }
-
-    string code = GenerateCode(words);
-
-    var existingCodes = Data.Products
-        .Select(x =>
-        {
-            var existingWords = x.Name
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-            return GenerateCode(existingWords);
-        })
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-    if (!existingCodes.Contains(code))
-        return code;
-
-    // If there is a conflict, progressively use
-    // more characters from the middle words.
-    for (int length = 3; length <= 10; length++)
-    {
-        string newCode = words[0][0].ToString().ToUpper();
-
-        for (int i = 1; i < words.Length - 1; i++)
-        {
-            int take = Math.Min(length, words[i].Length);
-
-            newCode += words[i]
-                .Substring(0, take)
-                .ToLower();
-
-            newCode = newCode[..^(take)] +
-                      words[i][0].ToString().ToUpper() +
-                      newCode[^Math.Min(take - 1, newCode.Length)..];
-        }
-
-        newCode += words[^1][0].ToString().ToUpper();
-
-        if (!existingCodes.Contains(newCode))
-            return newCode;
-    }
-
-    // If absolutely no unique abbreviation can be generated,
-    // return the original code rather than adding a number.
-    return code;
-    }
     
-    private void PrintReceipt(string printerName)
-    {
-        string divider = "-------------------------------";
-        
-    using PrintDocument document = new PrintDocument();
-
-    document.PrinterSettings.PrinterName = printerName;
-
-    if (!document.PrinterSettings.IsValid)
-    {
-        throw new Exception($"Printer not found: {printerName}");
-    }
-
-    document.PrintPage += (sender, e) =>
-    {
-        using Font font = new Font("Consolas", 9);
-        using Font boldFont = new Font("Consolas", 9, FontStyle.Bold);
-        using Font titleFont = new Font("Consolas", 14, FontStyle.Bold);
-        using SolidBrush brush = new SolidBrush(Color.Black);
-
-        float y = 10;
-
-        // =========================================================
-        // STORE
-        // =========================================================
-
-        var store = ((CustomAuthStateProvider)AuthenticationStateProvider)
-            .GetStore(Data.Stores);
-
-        string storeName = store?.Name ?? "Store";
-
-        e.Graphics.DrawString(
-            storeName,
-            titleFont,
-            brush,
-            10,
-            y
-        );
-
-        y += 30;
-
-
-        // =========================================================
-        // DATE / ORDER
-        // =========================================================
-
-        e.Graphics.DrawString(
-            $"Order #{OrderNumber}",
-            font,
-            brush,
-            10,
-            y
-        );
-
-        y += 18;
-
-        e.Graphics.DrawString(
-            DateTime.Now.ToString("MMM dd, yyyy hh:mm tt"),
-            font,
-            brush,
-            10,
-            y
-        );
-
-        y += 25;
-
-
-        // =========================================================
-        // DIVIDER
-        // =========================================================
-
-        e.Graphics.DrawString(
-            divider,
-            font,
-            brush,
-            10,
-            y
-        );
-
-        y += 20;
-
-
-        // =========================================================
-        // COLUMN POSITIONS
-        // =========================================================
-        string columnString = "ITEM|DIS|PRI|QUA|TOT";
-        string[] columns = columnString.Split('|');
-
-        int totalWidth = divider.Length;
-
-        columns[0] = FormatColumn(columns[0], (int)(totalWidth * 0.28));
-        columns[1] = FormatColumn(columns[1], (int)(totalWidth * 0.15));
-        columns[2] = FormatColumn(columns[2], (int)(totalWidth * 0.10));
-        columns[3] = FormatColumn(columns[3], (int)(totalWidth * 0.10));
-        columns[4] = FormatColumn(columns[4], (int)(totalWidth * 0.27));
-        
-        float codeX = 10;
-
-
-        // =========================================================
-        // HEADER
-        // =========================================================
-        string row = "";
-        foreach (var column in columns)
-        {
-            row += column;
-        }
-        
-        e.Graphics.DrawString(
-            row,
-            boldFont,
-            brush,
-            codeX,
-            y
-            );
-        
-
-        y += 20;
-
-
-        // =========================================================
-        // ITEMS
-        // =========================================================
-        
-        foreach (var cartItem in Cart)
-        {
-            row = string.Empty;
-            string code =
-                GenerateProductCode(cartItem.Product);
-
-            string discount =
-                cartItem.Discount is not null
-                    ? $"{cartItem.Discount.Value}%"
-                    : "";
-
-            if (cartItem.Discount is not null && cartItem.Discount.DiscountType == DiscountType.FixedAmount)
-                discount = $"-{cartItem.Discount.Value}";
-
-            string price =
-                cartItem.UnitPrice.ToString("N2");
-
-            string quantity =
-                MathF.Round(cartItem.Quantity).ToString();
-
-            string itemTotal =
-                (cartItem.UnitPrice * cartItem.Quantity)
-                .ToString("N2");
-            
-            
-            string[] newRow = new[] { code, discount, price, quantity, itemTotal };
-            string rowText = "";
-            for (int i = 0; i < newRow.Length; i++)
-            {
-                newRow[i] = FormatColumn(newRow[i], columns[i].Length);
-                rowText += newRow[i];
-            }
-
-            // PRODUCT CODE
-            e.Graphics.DrawString(
-                rowText,
-                font,
-                brush,
-                codeX,
-                y
-            );
-
-            y += 20;
-        }
-
-
-        // =========================================================
-        // DIVIDER
-        // =========================================================
-
-        y += 5;
-    
-        e.Graphics.DrawString(
-            divider,
-            font,
-            brush,
-            10,
-            y
-        );
-
-        y += 20;
-
-
-        // =========================================================
-        // SUBTOTAL
-        // =========================================================
-        e.Graphics.DrawString(
-            LeftRightFormat(("SUBTOTAL:"), $"₱{Subtotal:N2}", totalWidth),
-            font,
-            brush,
-            10,
-            y
-        );
-
-        y += 20;
-
-
-        // =========================================================
-        // DISCOUNT
-        // =========================================================
-
-        e.Graphics.DrawString(
-            LeftRightFormat("DISCOUNT:", $"-₱{Discount:N2}", totalWidth),
-            font,
-            brush,
-            10,
-            y
-        );
-
-        y += 20;
-
-
-        // =========================================================
-        // TAX
-        // =========================================================
-
-        // e.Graphics.DrawString(
-        //     "TAX:",
-        //     font,
-        //     brush,
-        //     10,
-        //     y
-        // );
-        //
-        // e.Graphics.DrawString(
-        //     $"₱{Tax:N2}",
-        //     font,
-        //     brush,
-        //     totalX,
-        //     y
-        // );
-        //
-        // y += 25;
-
-
-        // =========================================================
-        // TOTAL
-        // =========================================================
-
-        e.Graphics.DrawString(
-            LeftRightFormat("TOTAL:", $"₱{Total:N2}", totalWidth),
-            boldFont,
-            brush,
-            10,
-            y
-        );
-
-        y += 30;
-
-
-        // =========================================================
-        // FOOTER
-        // =========================================================
-
-        e.Graphics.DrawString(
-            "Thank you!",
-            boldFont,
-            brush,
-            10,
-            y
-        );
-    };
-
-    document.Print();
-}
-
-    private string LeftRightFormat(string left, string right, int totalWidth)
-    {
-        int spaces = totalWidth - left.Length - right.Length;
-        return left + new string(' ', spaces) + right;
-    }
-    
-    private string FormatColumn(string value, int width)
-    {
-        if (value.Length > width)
-        {
-            value = value.Substring(0, width - 1);
-            return value + " ";
-        }
-
-        return value.PadRight(width);
-    }
-
     // =========================================================
     // STATE
     // =========================================================
 
     private bool IsLoading;
+    private string LoadingMessage = "";
 
     private string ErrorMessage = "";
 
@@ -1551,6 +1149,10 @@
     private Store? CurrentStore;
 
     private int OrderNumber;
+
+    private bool EnablePrintReceipt;
+
+    private string CustomerName;
 
 
     // =========================================================
@@ -1593,8 +1195,14 @@
     private readonly decimal[] QuickCashAmounts =
     {
         100,
+        150,
         200,
+        250,
+        400,
+        450,
         500,
+        700,
+        750,
         1000
     };
 
@@ -1615,6 +1223,7 @@
         System.Random random = new();
         OrderNumber = random.Next(0, int.MaxValue);
         IsLoading = true;
+        LoadingMessage = "Loading POS...";
         ErrorMessage = "";
 
         AuthenticationStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
@@ -2426,6 +2035,9 @@
     if (!CanCompletePayment)
         return;
 
+        IsLoading = true;
+        LoadingMessage = "Completing payment...";
+
     if (CurrentStoreId is null)
     {
         ErrorMessage =
@@ -2619,11 +2231,9 @@
         Data.TransactionPayments.Add(
             savedPayment);
 
-        if (!string.IsNullOrWhiteSpace(SelectedPrinterName))
-        {
-            PrintReceipt(SelectedPrinterName);
-        }
-
+        IsLoading = false;
+        LoadingMessage = "";
+        
         // =========================================================
         // RESET POS
         // =========================================================
@@ -2640,6 +2250,12 @@
         SelectedPaymentType = null;
 
         CashReceived = 0;
+
+        CustomerName = "";
+        if (EnablePrintReceipt)
+        {
+            await PrintReceipt();
+        }
     }
     catch (Exception ex)
     {
@@ -2679,11 +2295,85 @@
         public decimal Price { get; set; }
     }
     
-    private string SelectedPrinterName = "";
-
-    private List<string> AvailablePrinters =>
-        PrinterSettings.InstalledPrinters
-            .Cast<string>()
-            .OrderBy(x => x)
-            .ToList();
+    private async Task PrintReceipt()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
 }
+
+<div class="receipt-print">
+
+    <div class="text-center fw-bolder">
+        @CurrentStore?.Name
+    </div>
+
+    <div class="text-center">
+        Order #@OrderNumber
+    </div>
+
+    <div class="text-center">
+        @DateTime.Now.ToString("MMM dd, yyyy hh:mm tt")
+    </div>
+    <span>Customer: @CustomerName?.ToUpper()</span>
+
+
+    @foreach (var item in Cart)
+    {
+        <div>
+            @item.Product.ProductCode
+        </div>
+
+        <div class="receipt-line d-flex justify-content-end">
+            <span>
+                @item.Quantity x @item.UnitPrice.ToString("N2") = 
+            </span>
+
+            <span>
+                ₱@((item.Quantity * item.UnitPrice).ToString("N2"))
+            </span>
+        </div>
+        
+        @foreach (var modifier in item.SelectedModifiers)
+        {
+            <div class="receipt-modifier d-flex justify-content-end">
+                w/ @modifier.OptionName (+₱@modifier.Price.ToString("N2"))
+            </div>
+        }
+        @if (item.Discount is not null)
+        {
+            if (item.Discount.DiscountType is DiscountType.Percentage)
+            {
+                <span class="d-flex justify-content-end">
+                    % @item.Discount.Value.ToString("N2") off
+                </span>
+            }
+            else
+            {
+                <span class="d-flex justify-content-end">
+                    -₱@item.Discount.Value.ToString("N2") off
+                </span>
+            }
+        }
+        <br/>
+    }
+    
+    <div class="receipt-line d-flex justify-content-between">
+        <span>SUBTOTAL</span>
+        <span>₱@Subtotal.ToString("N2")</span>
+    </div>
+    
+    <div class="receipt-line d-flex justify-content-between">
+        <span>DISCOUNT</span>
+        <span>₱@Discount.ToString("N2")</span>
+    </div>
+    
+    <div class="d-flex justify-content-between text-black">
+        <span>TOTAL</span>
+        <span>₱@Total.ToString("N2")</span>
+    </div>
+    <br/>
+    <div class="text-center">
+        Thank you!
+    </div>
+
+</div>

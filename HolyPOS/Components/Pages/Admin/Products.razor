@@ -108,6 +108,15 @@
                         @GetSortIcon(SortColumn.Name)
                     </button>
                 </div>
+                
+                <div class="col">
+                    <button type="button"
+                            class="btn btn-link text-dark text-decoration-none p-0"
+                            @onclick="() => SortBy(SortColumn.Code)">
+                        Item Code
+                        @GetSortIcon(SortColumn.Code)
+                    </button>
+                </div>
         
                 <div class="col-3">
                     <button type="button"
@@ -188,6 +197,10 @@
                                 <!-- PRODUCT -->
                                 <div class="col">
                                     @product.Name
+                                </div>
+                                
+                                <div class="col">
+                                    @product.ProductCode
                                 </div>
         
                                 <!-- CATEGORY -->
@@ -351,7 +364,10 @@
                 SortAscending
                     ? result.OrderBy(x => x.Name)
                     : result.OrderByDescending(x => x.Name),
-
+            SortColumn.Code =>
+                SortAscending
+                    ? result.OrderBy(x => x.ProductCode)
+                    : result.OrderByDescending(x => x.ProductCode),
             SortColumn.Category =>
                 SortAscending
                     ? result.OrderBy(x =>
@@ -469,6 +485,7 @@
     private enum SortColumn
     {
         Name,
+        Code,
         Category,
         Price,
         Cost,

@@ -11,11 +11,14 @@
 
 <PageTitle>Cash Count</PageTitle>
 
-
 @if (IsAuthorized)
 {
-<div class="admin-page container-fluid">
-    <PageHeader Head="Cash Count" SubHead=" Record today's cash drawer count." />
+    
+    <div class="container">
+        <div class="row">
+            <!-- 100% width on mobile (default), 50% width on Medium screens and up -->
+            <div class="col-12 col-md-6">
+<PageHeader Head="Cash Count" SubHead=" Record today's cash drawer count." />
 
     <div class="card">
 
@@ -42,7 +45,7 @@
 
             <!-- DATE -->
 
-            <div class="mb-3">
+            <div class="mb-2">
 
                 <label class="form-label">
                     Date
@@ -58,7 +61,7 @@
 
         <!-- SELLERS -->
 
-            <div class="mb-3">
+            <div class="mb-2">
 
                 <label class="form-label">
                     Sellers
@@ -74,7 +77,7 @@
 
             <!-- BEGINNING BALANCE -->
 
-            <div class="mb-3">
+            <div class="mb-2">
 
                 <label class="form-label">
                     Beginning Balance
@@ -99,7 +102,7 @@
 
             <!-- EXPENSES -->
 
-            <div class="mb-3">
+            <div class="mb-2">
 
                 <label class="form-label d-flex justify-content-between align-items-center">
 
@@ -177,7 +180,7 @@
 
             <!-- CASH COUNT AMOUNT -->
 
-            <div class="mb-4">
+            <div class="mb-3">
 
                 <label class="form-label">
                     Cash Count Amount
@@ -230,8 +233,9 @@
         </div>
 
     </div>
-
-</div>
+            </div>
+        </div>
+    </div>
 }
 
 
@@ -335,7 +339,7 @@
 
                 StoreId = authState.GetStoreId(Data.Stores),
 
-                Sellers = Sellers.Trim(),
+                Sellers = Sellers.ToUpperInvariant(),
 
                 BeginningBalance = BeginningBalance,
 

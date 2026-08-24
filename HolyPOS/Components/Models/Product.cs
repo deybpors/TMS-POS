@@ -32,4 +32,7 @@ public class Product : BaseModel
 
     [Column("is_active")]
     public bool IsActive { get; set; }
+
+    [Column("code")] 
+    public string ProductCode { get; set; }
 }

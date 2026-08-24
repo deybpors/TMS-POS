@@ -18,7 +18,7 @@
     @(IsNew ? "Add Product" : "Edit Product")
 </PageTitle>
 
-<div class="admin-page">
+<div class="admin-page w-75">
 
     <!-- PAGE HEADER -->
     <div class="d-flex align-items-center mb-4">
@@ -66,44 +66,50 @@
 
             <div class="row g-4">
 
-                <!-- NAME -->
-                <div class="col-md-6">
-
-                    <label class="form-label">
-                        Name
-                    </label>
-
-                    <input type="text"
-                           class="form-control form-control-lg"
-                           placeholder="Name"
-                           @bind="Product.Name" />
-
-                </div>
-
-
-                <!-- CATEGORY -->
-                <div class="col-md-6">
-
-                    <label class="form-label">
-                        Category
-                    </label>
-
-                    <select class="form-select form-select-lg"
-                            @bind="Product.CategoryId">
-
-                        <option value="">
-                            No category
-                        </option>
-
-                        @foreach (var category in Categories)
-                        {
-                            <option value="@category.Key">
-                                @category.Value
-                            </option>
-                        }
-
-                    </select>
-
+                <div class="row g-3">
+                
+                    <!-- NAME -->
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Name
+                        </label>
+                
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               placeholder="Name"
+                               @bind="Product.Name" />
+                    </div>
+                
+                    <!-- CODE -->
+                    <div class="col-md-2">
+                        <label class="form-label">
+                            Code
+                        </label>
+                
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               placeholder="Code"
+                               @bind="Product.ProductCode" />
+                    </div>
+                
+                    <!-- CATEGORY -->
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            Category
+                        </label>
+                
+                        <select class="form-select form-select-lg"
+                                @bind="Product.CategoryId">
+                            @foreach (var category in Categories)
+                            {
+                                <option value="@category.Key">
+                                    @category.Value
+                                </option>
+                            }
+                
+                        </select>
+                    </div>
+                
                 </div>
 
 

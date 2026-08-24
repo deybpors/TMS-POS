@@ -813,7 +813,7 @@ public async Task DeletePaymentTypeAsync(
                 .Insert(transaction);
 
             MarkDirty();
-
+            
             return response.Models.First();
         }
         catch (Exception ex)
